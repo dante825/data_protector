@@ -1,9 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request
+from app.auth.models import User
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.middleware.audit_middleware import AuditMiddleware
 from app.database.audit_database import init_audit_database
 from app.database.auth_database import init_auth_database
+from app.dependencies.auth_deps import get_current_user
 import os
 import logging
 
@@ -134,12 +136,12 @@ os.makedirs("templates", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Serve the main page
+# Serve the main page (protected by auth middleware)
 @app.get("/")
-async def read_index():
+async def read_index(request: Request, current_user: User = Depends(get_current_user)):
     return FileResponse('templates/index.html')
 
-# Serve the decrypt page
+# Serve the decrypt page (protected by auth middleware)
 @app.get("/decrypt")
-async def read_decrypt():
+async def read_decrypt(request: Request, current_user: User = Depends(get_current_user)):
     return FileResponse('templates/decrypt.html')

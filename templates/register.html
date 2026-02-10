@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Protector - Register</title>
+    <link rel="stylesheet" href="/static/css/banking-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Register Page Specific Styles */
+        .register-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .register-form {
+            background: var(--white);
+            padding: 2.5rem;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid #e9ecef;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: var(--font-weight-medium);
+            color: var(--primary-blue);
+            font-size: 0.9rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #dee2e6;
+            border-radius: var(--border-radius-md);
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: var(--font-primary);
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--secondary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon .form-control {
+            padding-right: 3rem;
+        }
+        
+        .input-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--medium-gray);
+            cursor: pointer;
+        }
+        
+        .password-strength {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .password-strength-text {
+            font-weight: var(--font-weight-medium);
+        }
+        
+        .password-strength-meter {
+            width: 80px;
+            height: 4px;
+            border-radius: 2px;
+            background: #dee2e6;
+            overflow: hidden;
+        }
+        
+        .password-strength-meter .fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s, background-color 0.3s;
+        }
+        
+        .password-strength-meter.weak .fill { background: var(--danger-red); width: 33%; }
+        .password-strength-meter.medium .fill { background: var(--warning-orange); width: 66%; }
+        .password-strength-meter.strong .fill { background: var(--success-green); width: 100%; }
+        
+        .password-requirements {
+            background: rgba(0, 102, 204, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .password-requirements h4 {
+            color: var(--primary-blue);
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .password-requirements ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .password-requirements li {
+            padding: 0.375rem 0;
+            color: var(--medium-gray);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .password-requirements li.met {
+            color: var(--success-green);
+        }
+        
+        .password-requirements li.met::before {
+            content: '✓';
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        
+        .password-requirements li:not(.met)::before {
+            content: '○';
+            color: var(--medium-gray);
+            margin-right: 0.5rem;
+        }
+        
+        .form-actions {
+            margin-bottom: 1.5rem;
+        }
+        
+        .terms-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--medium-gray);
+            cursor: pointer;
+        }
+        
+        .terms-checkbox input[type="checkbox"] {
+            margin-top: 0.25rem;
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-md);
+            font-size: 1rem;
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 51, 102, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        .btn-link {
+            background: none;
+            border: none;
+            color: var(--secondary-blue);
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+        
+        .switch-auth {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #dee2e6;
+            color: var(--medium-gray);
+        }
+        
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid var(--danger-red);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: var(--border-radius-md);
+            color: var(--danger-red);
+            display: none;
+        }
+        
+        .error-message.visible {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .success-message {
+            background: rgba(40, 167, 69, 0.1);
+            border-left: 4px solid var(--success-green);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: var(--border-radius-md);
+            color: var(--success-green);
+            display: none;
+        }
+        
+        .success-message.visible {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .form-section {
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="nav-links">
+            <a href="/login" class="nav-link">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </a>
+            <a href="/register" class="nav-link">
+                <i class="fas fa-user-plus"></i> Register
+            </a>
+        </div>
+        <div class="header-content">
+            <h1>
+                <i class="fas fa-user-plus"></i>
+                Project Protector
+            </h1>
+            <p class="subtitle">Secure Document Processing & PII Protection</p>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="register-container">
+            <!-- Error Message -->
+            <div id="error-message" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
+
+            <!-- Registration Form -->
+            <form id="register-form" class="register-form">
+                <h2 class="card-title" style="text-align: center; margin-bottom: 2rem; color: var(--primary-blue);">
+                    <i class="fas fa-user-plus"></i> Create New Account
+                </h2>
+
+                <div class="form-section">
+                    <div class="form-group">
+                        <label class="form-label" for="username">
+                            <i class="fas fa-user"></i> Username
+                        </label>
+                        <input type="text" id="username" class="form-control" placeholder="Choose a username (3-50 characters)" required maxlength="50" autocomplete="username">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="email">
+                            <i class="fas fa-envelope"></i> Email Address
+                        </label>
+                        <input type="email" id="email" class="form-control" placeholder="Enter your email address" required autocomplete="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">
+                            <i class="fas fa-id-card"></i> Full Name (Optional)
+                        </label>
+                        <input type="text" id="full_name" class="form-control" placeholder="Enter your full name" maxlength="100" autocomplete="name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">
+                            <i class="fas fa-lock"></i> Password
+                        </label>
+                        <div class="input-with-icon">
+                            <input type="password" id="password" class="form-control" placeholder="Create a strong password (min 8 chars)" required autocomplete="new-password">
+                            <i class="fas fa-eye input-icon" id="toggle-password" title="Show/Hide password"></i>
+                        </div>
+                        <div class="password-strength">
+                            <span class="password-strength-text">Strength: <span id="strength-text">-</span></span>
+                            <div class="password-strength-meter" id="strength-meter">
+                                <div class="fill"></div>
+                            </div>
+                        </div>
+                        <div class="password-requirements">
+                            <h4>Password Requirements:</h4>
+                            <ul>
+                                <li id="req-length" class="not-met">At least 8 characters</li>
+                                <li id="req-uppercase" class="not-met">At least one uppercase letter (A-Z)</li>
+                                <li id="req-lowercase" class="not-met">At least one lowercase letter (a-z)</li>
+                                <li id="req-number" class="not-met">At least one number (0-9)</li>
+                                <li id="req-special" class="not-met">At least one special character</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="confirm_password">
+                            <i class="fas fa-lock"></i> Confirm Password
+                        </label>
+                        <div class="input-with-icon">
+                            <input type="password" id="confirm_password" class="form-control" placeholder="Confirm your password" required autocomplete="new-password">
+                            <i class="fas fa-eye input-icon" id="toggle-confirm-password" title="Show/Hide password"></i>
+                        </div>
+                        <p id="password-match-message" style="color: var(--danger-red); font-size: 0.85rem; margin-top: 0.5rem; display: none;">
+                            <i class="fas fa-exclamation-circle"></i> Passwords do not match
+                        </p>
+                    </div>
+
+                    <div class="form-actions">
+                        <label class="terms-checkbox">
+                            <input type="checkbox" id="terms-checkbox" required>
+                            <span>I agree to the <a href="#" style="color: var(--secondary-blue);">Terms of Service</a> and <a href="#" style="color: var(--secondary-blue);">Privacy Policy</a></span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="register-btn" disabled>
+                        <i class="fas fa-user-plus"></i> Register Account
+                    </button>
+                </div>
+            </form>
+
+            <!-- Already have account -->
+            <div class="switch-auth">
+                <p>Already have an account? <a href="/login" class="btn-link">Login here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/auth.js"></script>
+</body>
+</html>
