@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.middleware.audit_middleware import AuditMiddleware
 from app.database.audit_database import init_audit_database
+from app.database.auth_database import init_auth_database
 import os
 import logging
 
@@ -12,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Project Protector API", version="0.1")
 
-# Initialize audit database (optional, non-blocking)
+# Initialize databases (optional, non-blocking)
 audit_enabled = False
+auth_enabled = False
+
 try:
-    # Only try to initialize if SQLAlchemy is available
     import sqlalchemy
     from app.database.audit_database import init_audit_database
     init_audit_database()
@@ -26,6 +28,14 @@ except ImportError:
 except Exception as e:
     logger.warning(f"⚠️ Audit system initialization failed: {e} - continuing without audit")
 
+try:
+    from app.database.auth_database import init_auth_database
+    init_auth_database()
+    auth_enabled = True
+    logger.info("✅ Auth database initialized successfully")
+except Exception as e:
+    logger.warning(f"⚠️ Auth system initialization failed: {e} - continuing without auth")
+
 # Add audit middleware only if audit system is working
 if audit_enabled:
     try:
@@ -34,6 +44,14 @@ if audit_enabled:
     except Exception as e:
         logger.warning(f"⚠️ Failed to add audit middleware: {e}")
         audit_enabled = False
+
+# Add auth middleware to protect all /api routes
+try:
+    from app.middleware.auth_middleware import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+    logger.info("✅ Auth middleware enabled")
+except Exception as e:
+    logger.warning(f"⚠️ Failed to add auth middleware: {e}")
 
 # Import routers with error handling
 try:
@@ -49,6 +67,7 @@ try:
     print("✅ Download router loaded successfully")
 except Exception as e:
     print(f"❌ Failed to load download router: {e}")
+
 try: 
     from app.routers import process_router
     app.include_router(process_router.router, prefix="/api")
@@ -62,6 +81,15 @@ try:
     print("✅ Decrypt router loaded successfully")
 except Exception as e:
     print(f"❌ Failed to load decrypt router: {e}")
+
+# Load auth routers
+if auth_enabled:
+    try:
+        from app.auth.routers.auth_router import router as auth_router
+        app.include_router(auth_router, prefix="/api")
+        print("✅ Auth router loaded successfully")
+    except Exception as e:
+        print(f"❌ Failed to load auth router: {e}")
 
 # Load audit routers only if audit system is enabled
 if audit_enabled:

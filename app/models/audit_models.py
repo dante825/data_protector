@@ -205,3 +205,38 @@ class AuditSummary(Base):
     suspicious_activities = Column(Integer, default=0)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# Import User model for relationship
+try:
+    from app.auth.models import User
+    AUDIT_USER_MODEL_AVAILABLE = True
+except ImportError:
+    AUDIT_USER_MODEL_AVAILABLE = False
+
+if AUDIT_USER_MODEL_AVAILABLE:
+    # Add user_id to AuditSession
+    AuditSession.user_id = Column(Integer, nullable=True)
+    AuditSession.user = relationship("User", back_populates="audit_sessions")
+    AuditSession.file_operations = relationship("FileOperationLog", back_populates="session")
+    AuditSession.pii_operations = relationship("PIIProcessingLog", back_populates="session")
+    AuditSession.user_actions = relationship("UserActionLog", back_populates="session")
+    AuditSession.system_events = relationship("SystemEventLog", back_populates="session")
+    
+    # Add relationship to AuditSession
+    AuditSession.user = relationship("User", back_populates="audit_sessions")
+    
+    # Add user_id to FileOperationLog
+    FileOperationLog.user_id = Column(Integer, nullable=True)
+    FileOperationLog.user = relationship("User", back_populates="file_operations")
+    
+    # Add user_id to PIIProcessingLog
+    PIIProcessingLog.user_id = Column(Integer, nullable=True)
+    PIIProcessingLog.user = relationship("User", back_populates="pii_operations")
+    
+    # Add user_id to UserActionLog
+    UserActionLog.user_id = Column(Integer, nullable=True)
+    UserActionLog.user = relationship("User", back_populates="user_actions")
+    
+    # Add user_id to SystemEventLog
+    SystemEventLog.user_id = Column(Integer, nullable=True)
+    SystemEventLog.user = relationship("User", back_populates="system_events")

@@ -1,9 +1,11 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 import shutil
 import tempfile
 import os
 import io
+from app.dependencies.auth_deps import get_current_user
+from app.auth.models import User
 from app.services.decrypt_text import decrypt_masked_file
 from app.services.decrypt_jpeg import decrypt_masked_image_to_bytes
 from app.services.decrypt_pdf import decrypt_masked_pdf
@@ -12,7 +14,7 @@ from app.services.decrypt_docx import decrypt_masked_docx
 router = APIRouter()
 
 @router.post("/decrypt")
-async def decrypt_file(
+async def decrypt_file(current_user: User = Depends(get_current_user),
     masked_file: UploadFile = File(...),
     json_file: UploadFile = File(...),
     key_file: UploadFile = File(...)

@@ -1,7 +1,9 @@
-from fastapi import UploadFile, File, APIRouter, HTTPException, Form, Request
+from fastapi import UploadFile, File, APIRouter, HTTPException, Form, Request, Depends
+from app.dependencies.auth_deps import get_current_user
+from app.services.audit_service import AuditService
 from typing import List, Optional
 import uuid, os, json, time
-from app.services.audit_service import AuditService
+from app.auth.models import User
 
 router = APIRouter()
 UPLOAD_DIR = "uploads"
@@ -21,6 +23,7 @@ ALLOWED_MIME_TYPES = {
 @router.post("/upload_files")
 async def upload_files(
     request: Request,
+    current_user: User = Depends(get_current_user),
     files: List[UploadFile] = File(...),
     enabled_pii_categories: Optional[str] = Form(None)
 ):

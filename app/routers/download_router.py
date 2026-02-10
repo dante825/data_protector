@@ -1,10 +1,14 @@
 # app/routers/download_router.py
 from fastapi import APIRouter, HTTPException, Depends
+
+from app.dependencies.auth_deps import get_current_user
+from app.auth.models import User
 from fastapi.responses import FileResponse
 import os
 import zipfile
 from pathlib import Path
 import uuid
+
 
 router = APIRouter()
 
@@ -16,7 +20,7 @@ DOWNLOADS_DIR = "downloads"
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 @router.get("/download/{task_id}")
-async def download_task_files(task_id: str):
+async def download_task_files(task_id: str, current_user: User = Depends(get_current_user)):
     """
     Download all files for a given task ID as a ZIP file
     """

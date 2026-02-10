@@ -1,3 +1,7 @@
+source .venv/bin/activate
+ollama launch opencode --model qwen3-coder-next
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
 # Project Protector - Improvement Suggestions
 
 ## 1. Security & Compliance (High Priority)
@@ -9,7 +13,8 @@
 ## 2. Testing & Quality Assurance (High Priority)
 - **Test Coverage**: No tests currently. Add comprehensive unit, integration, and end-to-end tests
 - **Static Analysis**: Add `mypy` for type checking, `ruff`/`pylint` for linting
-- **Security Scanning**: Add `bandit` for security analysis, `safety` for dependency vulnerability checks
+- **AI/ML**: Add'local ollama' for LLM detection on PII (name, organization name, IC/passport, phone, email address only)
+- **API**: Add a API interface beside text, csv, pdf and image
 
 ## 3. Performance Optimization (Medium Priority)
 - **Model Loading**: Current lazy loading causes first-request delays. Consider pre-loading on startup or async initialization

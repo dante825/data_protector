@@ -1,5 +1,5 @@
 # app/routers/process_router.py
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 import os, json, time, uuid
 
 from app.services.image_processor import run_ocr_jpeg
@@ -17,11 +17,13 @@ except ImportError:
     AUDIT_ENABLED = False
     print("⚠️ Audit service not available in process router - using basic logging")
 
+from app.dependencies.auth_deps import get_current_user
+from app.auth.models import User
 router = APIRouter()
 UPLOAD_DIR = "uploads"
 
 @router.post("/process/{task_id}")
-async def process_task(task_id: str, request: Request):
+async def process_task(task_id: str, request: Request, current_user: User = Depends(get_current_user)):
     start_time = time.time()
     base_url = str(request.base_url)
     task_path = os.path.join(UPLOAD_DIR, task_id)
