@@ -4,7 +4,8 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, J
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.database.audit_database import Base
+
+Base = declarative_base()
 
 
 class User(Base):
@@ -24,11 +25,6 @@ class User(Base):
     # Relationships
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
     user_sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
-    file_operations = relationship("FileOperationLog", back_populates="user")
-    pii_operations = relationship("PIIProcessingLog", back_populates="user")
-    user_actions = relationship("UserActionLog", back_populates="user")
-    system_events = relationship("SystemEventLog", back_populates="user")
-    audit_sessions = relationship("AuditSession", back_populates="user")
 
 
 class ApiKey(Base):

@@ -1,6 +1,14 @@
 source .venv/bin/activate
 ollama launch opencode --model qwen3-coder-next
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+ss -tulpn | grep 127.0.0.1
+
+Username: admin
+Password: Zu9_KdHzS;sr
+Email: admin@Protector.local
+Full Name: System Administrator
+Is Active: Yes
+Is Admin: Yes
 
 # Project Protector - Improvement Suggestions
 
