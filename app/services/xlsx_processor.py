@@ -87,3 +87,19 @@ def mask_xlsx_sensitive_text(xlsx_path: str, key_path: str = None, enabled_pii_c
         "json_output": json_output_path,
         "key_file": key_path
     }
+
+def run_xlsx_processing(xlsx_path: str, enabled_pii_categories=None):
+    try:
+        key_path = xlsx_path.replace(".xlsx", ".key")
+        result = mask_xlsx_sensitive_text(xlsx_path, key_path, enabled_pii_categories)
+        return {
+            "status": result.get("status", "error"),
+            "masked_xlsx": result.get("masked_file"),
+            "json_output": result.get("json_output"),
+            "key_file": result.get("key_file")
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
