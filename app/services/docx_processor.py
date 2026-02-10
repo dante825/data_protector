@@ -1,10 +1,8 @@
-# app/services/docx_processor.py
-
 import os
 import json
 import re
 import hashlib
-from cryptography.fernet import Fernet
+from app.services.aes_gcm import encrypt_with_metadata, generate_key as generate_key_aes
 from docx import Document
 from app.services.pii_main import extract_all_pii
 
@@ -12,59 +10,50 @@ def mask_docx_sensitive_text(docx_path: str, key_path: str = None, enabled_pii_c
     if key_path is None:
         key_path = docx_path.replace(".docx", ".key")
 
-    # Load or generate a key
     if os.path.exists(key_path):
         with open(key_path, "rb") as f:
             key = f.read()
     else:
-        key = Fernet.generate_key()
+        key = generate_key_aes()
         with open(key_path, "wb") as f:
             f.write(key)
 
-    fernet = Fernet(key)
     document = Document(docx_path)
 
-    # Extract all text from the document first
     full_text = ""
     for para in document.paragraphs:
         full_text += para.text + "\n"
 
-    # Extract all PII at once to avoid duplicates
     all_pii_list = extract_all_pii(full_text, enabled_pii_categories)
 
-    # Create unique PII mapping with hash-based tags
     unique_pii = {}
     masked_pii = []
 
     for label, value in all_pii_list:
         if value not in unique_pii:
             try:
-                encrypted = fernet.encrypt(value.encode()).decode()
-                # Use hash for unique tags like in text processor
-                import hashlib
+                encrypted = encrypt_with_metadata(value, key)
+                encrypted_str = json.dumps(encrypted)
                 value_hash = hashlib.md5(value.encode()).hexdigest()[:8]
                 unique_tag = f"[ENC:{label}_{value_hash}]"
 
-                unique_pii[value] = {"encrypted": encrypted, "tag": unique_tag}
+                unique_pii[value] = {"encrypted": encrypted_str, "tag": unique_tag}
                 masked_pii.append({
                     "original": value,
-                    "encrypted": encrypted,
+                    "encrypted": encrypted_str,
                     "label": label,
                     "masked": unique_tag
                 })
             except Exception as e:
                 print(f"[ERROR] Failed to encrypt '{value}': {e}")
 
-    # Sort by length for safe replacement
     sorted_pii_items = sorted(unique_pii.items(), key=lambda x: len(x[0]), reverse=True)
 
-    # Apply safe replacement to each paragraph
     for para in document.paragraphs:
-        if para.text.strip():  # Only process non-empty paragraphs
+        if para.text.strip():
             masked_text = para.text
 
             for pii_value, pii_info in sorted_pii_items:
-                # Use the same safe replacement logic as text processor
                 parts = re.split(r'(\[ENC:[^\]]+\])', masked_text)
 
                 for i in range(len(parts)):
@@ -80,7 +69,6 @@ def mask_docx_sensitive_text(docx_path: str, key_path: str = None, enabled_pii_c
 
             para.text = masked_text
 
-    # Output File
     masked_path = docx_path.replace(".docx", ".masked.docx")
     document.save(masked_path)
 

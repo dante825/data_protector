@@ -1,5 +1,5 @@
 # OCR/ocr_jpeg.py
-from cryptography.fernet import Fernet
+from app.services.aes_gcm import generate_key as aes_generate_key, encrypt_with_metadata, decrypt_with_metadata
 import json
 import easyocr
 import cv2
@@ -76,10 +76,12 @@ def mask_region_improved(image, x_min, y_min, x_max, y_max):
 
 # === Encryption/Decryption ===
 def generate_key():
-    return Fernet.generate_key()
+    return aes_generate_key()
 
-def encrypt_text(text, fernet):
-    return fernet.encrypt(text.encode()).decode()
+def encrypt_text(text, key):
+    """Encrypt text using AES-256-GCM, returns base64 string"""
+    encrypted = encrypt_with_metadata(text, key)
+    return encrypted
 
 # === bbox IOU determination (remove reuse) ===
 def iou(bbox1, bbox2):
@@ -112,12 +114,14 @@ def load_or_generate_valid_key(key_path):
         if os.path.exists(key_path):
             with open(key_path, "rb") as f:
                 key = f.read()
-            Fernet(key)
+            # Verify key works (32 bytes for AES-256)
+            if len(key) != 32:
+                raise ValueError("Invalid key size")
         else:
             raise ValueError("Key file does not exist")
     except Exception as e:
         print(f"[WARN] Invalid or corrupted key (or path conflict): {e}")
-        key = Fernet.generate_key()
+        key = aes_generate_key()
         with open(key_path, "wb") as f:
             f.write(key)
     return key
@@ -251,7 +255,6 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
     print(f"[INFO] Will finally mask {len(keywords)} keywords")
     # === Step 4: Load or generate a key ===
     key = load_or_generate_valid_key(key_path)
-    fernet = Fernet(key)
     seen = []
     # === Step 5: Traverse the original OCR results and match keywords (support cross-line keywords) ===
     for bbox, text, confidence in results:
@@ -299,14 +302,14 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
         roi_base64 = base64.b64encode(roi_encoded).decode('utf-8')
         # Use improved masking methods to avoid hard edges
         mask_region_improved(image, x_min, y_min, x_max, y_max)
-        cipher = encrypt_text(text, fernet)
+        cipher = encrypt_text(text, key)
         encrypted_data.append({
             "cipher": cipher,
             "bbox": [[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]],
             "confidence": confidence,
             "original_image_base64": roi_base64
         })
-        print(f"[MASKED + ENCRYPTED] '{text}' -> {cipher[:12]}...")
+        print(f"[MASKED + ENCRYPTED] '{text}' -> {str(cipher)[:12]}...")
 
     # === Saving images and JSON ===
     if output_image_path is None:
