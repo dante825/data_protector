@@ -145,3 +145,13 @@ async def read_index(request: Request, current_user: User = Depends(get_current_
 @app.get("/decrypt")
 async def read_decrypt(request: Request, current_user: User = Depends(get_current_user)):
     return FileResponse('templates/decrypt.html')
+
+# Serve the login page
+@app.get("/login")
+async def read_login():
+    return FileResponse('templates/login.html')
+
+# Serve the registration page
+@app.get("/register")
+async def read_register():
+    return FileResponse('templates/register.html')
