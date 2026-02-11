@@ -25,6 +25,8 @@ class User(Base):
     # Relationships
     api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
     user_sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    # Audit relationships (defined after model to avoid circular imports)
+    # audit_sessions will be added dynamically in audit_models.py
 
 
 class ApiKey(Base):

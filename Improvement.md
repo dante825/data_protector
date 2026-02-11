@@ -136,3 +136,80 @@ Replaced Fernet encryption with **AES-256-GCM** (Authenticated Encryption with A
 - No backward compatibility with old Fernet files
 - New files use AES-256-GCM format
 - Key format unchanged (32-byte AES-256 key)
+
+---
+
+## Recent Implementation: Authentication & Authorization System ✅
+
+### Summary
+Implemented comprehensive user authentication and authorization system with JWT tokens, session management, and protected routing.
+
+### What Was Implemented
+
+#### 1. User Registration & Login
+- User registration with email validation
+- Login with OAuth2 password flow
+- JWT access tokens with 24-hour expiry
+- HTTP-only cookies for browser authentication
+- Session tracking with IP and user agent logging
+
+#### 2. Protected Routes
+- Server-side redirect for unauthenticated users
+- `/` and `/decrypt` pages require authentication
+- Redirect to `/login` with destination stored for post-login redirect
+- Frontend auth checking for all API calls
+
+#### 3. Authorization Headers
+- `ProjectProtector` class in main.js with `_getAuthHeaders()` method
+- `DecryptManager` class in decrypt.js with `_getAuthHeaders()` method
+- All API calls include Authorization header with Bearer token
+
+#### 4. Logout Functionality
+- Backend `/api/auth/logout` endpoint invalidates session and deletes cookie
+- Frontend `handleLogout()` clears tokens and redirects
+- Success message displayed before redirect
+
+### Files Updated
+- `app/main.py` - Added server-side auth checking and redirect
+- `app/dependencies/auth_deps.py` - Fixed to use auth database
+- `app/auth/routers/auth_router.py` - Full auth router with login/logout
+- `app/models/audit_models.py` - Removed circular dependencies
+- `static/js/auth.js` - Authentication logic, token storage, and logout
+- `static/js/main.js` - Added auth headers for upload/process/download
+- `static/js/decrypt.js` - Added auth headers for decrypt
+- `templates/index.html` - Added logout link and auth script
+- `templates/decrypt.html` - Added logout link and auth script
+
+### How to Use
+
+#### Login
+1. Visit `/login`
+2. Enter username and password
+3. Click "Login" button
+4. You'll be redirected to `/`
+
+#### Access Protected Pages
+- `/` - Index page (shows upload form after login)
+- `/decrypt` - Decrypt files page
+- Both redirect to `/login` if not authenticated
+
+#### Logout
+1. Click "Logout" link in navigation bar
+2. Session is invalidated server-side
+3. HTTP-only cookie is deleted
+4. You're redirected to `/login`
+
+### API Endpoints
+- `POST /api/auth/login` - Login with OAuth2 password flow
+- `POST /api/auth/logout` - Logout and invalidate session
+- `POST /api/auth/register` - Register new user
+
+### Token Storage
+- **SessionStorage**: Used by default (cleared when browser closes)
+- **LocalStorage**: Used when "Remember Me" is checked
+
+### Testing
+- Login with registered users works correctly
+- Upload, process, download require valid authentication
+- Logout invalidates session and redirects properly
+

@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Depends, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from app.auth.models import User
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.middleware.audit_middleware import AuditMiddleware
 from app.database.audit_database import init_audit_database
 from app.database.auth_database import init_auth_database
 from app.dependencies.auth_deps import get_current_user
+from app.auth.jwt_handler import verify_token
 import os
 import logging
 
@@ -136,14 +137,43 @@ os.makedirs("templates", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Serve the main page (protected by auth middleware)
+# Check if user is authenticated (via cookie or token)
+async def check_user_authenticated(request: Request) -> bool:
+    """Check if user has valid authentication token"""
+    if not auth_enabled:
+        return True
+    
+    # Check Authorization header (for API calls)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        if verify_token(token):
+            return True
+    
+    # Check cookie for browser visits
+    token = request.cookies.get("access_token")
+    if token:
+        payload = verify_token(token)
+        if payload:
+            return True
+    
+    # Check sessionStorage (for JavaScript-based auth)
+    # Note: This won't work for server-side checks, so we skip it
+    
+    return False
+
+# Serve the main page
 @app.get("/")
-async def read_index(request: Request, current_user: User = Depends(get_current_user)):
+async def read_index(request: Request):
+    if not await check_user_authenticated(request):
+        return RedirectResponse(url="/login")
     return FileResponse('templates/index.html')
 
-# Serve the decrypt page (protected by auth middleware)
+# Serve the decrypt page
 @app.get("/decrypt")
-async def read_decrypt(request: Request, current_user: User = Depends(get_current_user)):
+async def read_decrypt(request: Request):
+    if not await check_user_authenticated(request):
+        return RedirectResponse(url="/login")
     return FileResponse('templates/decrypt.html')
 
 # Serve the login page

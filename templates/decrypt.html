@@ -195,6 +195,16 @@
     </div>
 
     <!-- JavaScript -->
+    <script src="/static/js/auth.js"></script>
+    <script>
+        // Check authentication status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is authenticated when visiting protected pages
+            if (window.location.pathname === '/' || window.location.pathname === '/decrypt') {
+                checkAuthStatus();
+            }
+        });
+    </script>
     <script src="/static/js/decrypt.js"></script>
 </body>
 </html>

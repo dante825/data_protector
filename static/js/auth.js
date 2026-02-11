@@ -136,10 +136,13 @@ function isTokenExpired() {
     const startTime = sessionStorage.getItem('tokenStartTime');
     if (!startTime) return true;
     
-    const elapsed = Date.now() - parseInt(startTime);
+    const start = parseInt(startTime);
+    if (isNaN(start)) return true;
+    
+    const elapsed = Date.now() - start;
     const tokenLifetime = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     
-    return elapsed > tokenLifetime;
+    return elapsed > tokenLifetime || elapsed < 0; // Also check for negative (clock issue)
 }
 
 function getAuthHeaders() {
@@ -173,7 +176,7 @@ function handleLogin(event) {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-            'grant_type': '',
+            'grant_type': 'password',
             'username': username,
             'password': password,
             'scope': '',
@@ -198,8 +201,10 @@ function handleLogin(event) {
             if (rememberMe) {
                 localStorage.setItem('accessToken', data.access_token);
             }
-            // Redirect to main page
-            window.location.href = '/';
+            // Check if there's a redirect destination after login
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || '/';
+            sessionStorage.removeItem('redirectAfterLogin');
+            window.location.href = redirectUrl;
         }, 1500);
     })
     .catch(error => {
@@ -301,21 +306,32 @@ function handleRegister(event) {
 function handleLogout() {
     const token = getAccessToken();
     
-    fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(() => {
+    // Call backend logout endpoint to invalidate session
+    if (token) {
+        const headers = { 'Authorization': `Bearer ${token}` };
+        
+        fetch('/api/auth/logout', { method: 'POST', headers: headers })
+            .then(() => {
+                // Backend call succeeded, now clear local tokens
+                clearTokens();
+                sessionStorage.removeItem('redirectAfterLogin');
+                showSuccess('Logged out successfully');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 1000);
+            })
+            .catch(() => {
+                // Backend call failed, still clear local tokens and redirect
+                clearTokens();
+                sessionStorage.removeItem('redirectAfterLogin');
+                window.location.href = '/login';
+            });
+    } else {
+        // No token, just clear and redirect
         clearTokens();
-        showSuccess('Logged out successfully');
+        sessionStorage.removeItem('redirectAfterLogin');
         window.location.href = '/login';
-    })
-    .catch(() => {
-        clearTokens();
-        window.location.href = '/login';
-    });
+    }
 }
 
 // Token Refresh
@@ -350,18 +366,26 @@ function checkAuthStatus() {
     const token = getAccessToken();
     
     if (!token || isTokenExpired()) {
-        // Try to refresh
-        return refreshAccessToken()
-            .then(() => {
-                return true; // Still authenticated
-            })
-            .catch(() => {
-                // Not authenticated
-                if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-                    window.location.href = '/login';
-                }
-                return false;
-            });
+        // Clear invalid tokens
+        clearTokens();
+        
+        // Check if we're on a protected page
+        const protectedPaths = ['/', '/decrypt', '/human-review'];
+        const isProtectedPage = protectedPaths.some(path => 
+            window.location.pathname === path || window.location.pathname.startsWith(path + '/')
+        );
+        
+        // Only redirect if on a protected page and not on login/register
+        const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register';
+        
+        if (isProtectedPage && !isAuthPage) {
+            // Store the intended destination for redirect after login
+            sessionStorage.setItem('redirectAfterLogin', window.location.pathname + window.location.search);
+            window.location.href = '/login';
+            return Promise.resolve(false);
+        }
+        
+        return Promise.resolve(false);
     }
     
     return Promise.resolve(true);
@@ -447,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Check auth status on page load for protected pages
-    if (window.location.pathname === '/' || window.location.pathname.startsWith('/api/')) {
+    if (window.location.pathname === '/' || window.location.pathname === '/decrypt') {
         checkAuthStatus();
     }
 });

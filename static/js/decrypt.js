@@ -10,6 +10,12 @@ class DecryptManager {
         this.bindEvents();
     }
 
+    _getAuthHeaders() {
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+        if (!token) return {};
+        return { 'Authorization': `Bearer ${token}` };
+    }
+
     initializeElements() {
         // File upload areas
         this.maskedFileArea = document.getElementById('masked-file-area');
@@ -273,8 +279,10 @@ class DecryptManager {
 
             this.showProgress(30, 'Uploading files for decryption...');
 
+            const headers = this._getAuthHeaders();
             const response = await fetch('/api/decrypt', {
                 method: 'POST',
+                headers: headers,
                 body: formData
             });
 

@@ -4,11 +4,11 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_handler import verify_token
-from app.database.audit_database import get_audit_db
+from app.database.auth_database import get_auth_db
 from app.auth.models import User, UserSession
 
 
-async def get_current_user(request: Request, db: Session = Depends(get_audit_db)) -> User:
+async def get_current_user(request: Request, db: Session = Depends(get_auth_db)) -> User:
     """Get current authenticated user from JWT token"""
     auth_header = request.headers.get("Authorization")
     
@@ -46,7 +46,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
     return current_user
 
 
-def get_user_by_token(token: str, db: Session = Depends(get_audit_db)) -> User:
+def get_user_by_token(token: str, db: Session = Depends(get_auth_db)) -> User:
     """Get user by JWT token"""
     payload = verify_token(token)
     

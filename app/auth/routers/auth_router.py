@@ -3,14 +3,15 @@ from datetime import datetime
 import secrets
 
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
 from app.auth import schemas
-from app.auth.jwt_handler import create_access_token, create_refresh_token, create_session_id
+from app.auth.jwt_handler import create_access_token, create_refresh_token, create_session_id, verify_token
 from app.auth.password_hasher import hash_password, verify_password
-from app.database.audit_database import get_audit_db
+from app.database.auth_database import get_auth_db, get_auth_db_sync
 from app.auth.models import User, UserSession
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -44,7 +45,7 @@ def create_user(db: Session, user: schemas.UserCreate) -> User:
 @router.post("/register", response_model=schemas.User)
 async def register_user(
     user: schemas.UserCreate,
-    db: Session = Depends(get_audit_db)
+    db: Session = Depends(get_auth_db_sync)
 ):
     """Register a new user"""
     # Check if user already exists
@@ -61,10 +62,9 @@ async def register_user(
 
 
 @router.post("/login", response_model=schemas.Token)
-async def login_for_access_token(
+async def login_for_access_token(request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_audit_db),
-    request: Request = None
+    db: Session = Depends(get_auth_db_sync)
 ):
     """Login and get access tokens"""
     user = get_user_by_username(db, form_data.username)
@@ -108,21 +108,30 @@ async def login_for_access_token(
     db.add(user_session)
     db.commit()
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    response = JSONResponse(
+        content={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+    )
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=60 * 60 * 24  # 24 hours
+    )
+    return response
 
 
 @router.post("/refresh-token", response_model=schemas.Token)
 async def refresh_access_token(
     refresh_data: schemas.TokenRefresh,
-    db: Session = Depends(get_audit_db)
+    db: Session = Depends(get_auth_db_sync)
 ):
     """Refresh access token using refresh token"""
-    from app.auth.jwt_handler import verify_token
-    
     payload = verify_token(refresh_data.refresh_token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -151,7 +160,7 @@ async def refresh_access_token(
 @router.post("/logout")
 async def logout_user(
     request: Request,
-    db: Session = Depends(get_audit_db)
+    db: Session = Depends(get_auth_db_sync)
 ):
     """Logout current user"""
     auth_header = request.headers.get("Authorization")
@@ -169,13 +178,15 @@ async def logout_user(
                     user_session.logout_time = datetime.utcnow()
                     db.commit()
     
-    return {"message": "Logged out successfully"}
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie("access_token", path="/")
+    return response
 
 
 @router.get("/me", response_model=schemas.User)
 async def read_users_me(
     request: Request,
-    db: Session = Depends(get_audit_db)
+    db: Session = Depends(get_auth_db_sync)
 ):
     """Get current user info"""
     auth_header = request.headers.get("Authorization")

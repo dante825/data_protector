@@ -1,5 +1,12 @@
 // Project Protector - Main JavaScript
 class ProjectProtector {
+    // Helper to get auth headers
+    _getAuthHeaders() {
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+        if (!token) return {};
+        return { 'Authorization': `Bearer ${token}` };
+    }
+
     constructor() {
         this.selectedFiles = [];
         this.currentTaskId = null;
@@ -201,6 +208,7 @@ class ProjectProtector {
 
             const response = await fetch('/api/upload_files', {
                 method: 'POST',
+                headers: this._getAuthHeaders(),
                 body: formData
             });
 
@@ -236,7 +244,8 @@ class ProjectProtector {
 
         try {
             const response = await fetch(`/api/process/${this.currentTaskId}`, {
-                method: 'POST'
+                method: 'POST',
+                headers: this._getAuthHeaders()
             });
 
             if (!response.ok) {
@@ -262,18 +271,39 @@ class ProjectProtector {
 
     downloadFiles() {
         if (!this.currentTaskId) return;
-        
-        // Create download link
+
+        this.showMessage('Downloading files. Please wait...', 'info');
+
+        // Download using fetch with Authorization header
         const downloadUrl = `/api/download/${this.currentTaskId}`;
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `task_${this.currentTaskId}.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        this.showMessage('Download started! Check your downloads folder.', 'success');
-        this.showNewTaskButton();
+        const headers = this._getAuthHeaders();
+
+        fetch(downloadUrl, { headers: headers })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.detail || 'Download failed');
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link for the blob
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `task_${this.currentTaskId}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+
+                this.showMessage('Download completed!', 'success');
+                this.showNewTaskButton();
+            })
+            .catch(error => {
+                this.showMessage('Download failed: ' + error.message, 'error');
+            });
     }
 
     startNewTask() {
