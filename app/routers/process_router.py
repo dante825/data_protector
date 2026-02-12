@@ -130,13 +130,15 @@ async def process_task(task_id: str, request: Request, current_user: User = Depe
                             "processing_successful": True
                         }
 
-                        # Add Gemini to detection methods if enabled
-                        try:
-                            from app.services.pii_main import gemini_enabled
-                            if gemini_enabled:
-                                pii_found_data["detection_methods"].append("Gemini")
-                        except:
-                            pass
+                         # Add detection methods (Ollama or Gemini)
+                         try:
+                             from app.services.pii_main import gemini_enabled, ollama_enabled
+                             if gemini_enabled:
+                                 pii_found_data["detection_methods"].append("Gemini")
+                             elif ollama_enabled:
+                                 pii_found_data["detection_methods"].append("Ollama")
+                         except:
+                             pass
 
                     with AuditService() as audit:
                         file_op_id = audit.log_file_operation(

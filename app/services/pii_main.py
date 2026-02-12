@@ -7,6 +7,11 @@ from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
 from app.resources.dictionaries import NAMES, ORG_NAMES, RACES, STATUS, LOCATIONS, RELIGIONS
 
+from app.config.ollama_config import OLLAMA_ENABLED
+from app.services.ollama_client import generate_json
+ollama_enabled = OLLAMA_ENABLED
+ollama_client = None
+
 # === Delay loading models ===
 ner_pipeline = None
 model_loaded = False
@@ -96,6 +101,22 @@ def load_gemini_client():
         print(f"[WARN] Failed to initialize Gemini client: {e}")
         print("[INFO] Gemini PII detection disabled - using Presidio + NER only")
         gemini_enabled = False
+        return False
+
+def load_ollama_client():
+    """Initialize Ollama client if available"""
+    global ollama_client, ollama_enabled
+    try:
+        from app.config.ollama_config import OLLAMA_ENABLED
+        from app.services.ollama_client import generate_json
+        ollama_enabled = OLLAMA_ENABLED
+        ollama_client = True
+        print("✅ Ollama API client initialized successfully")
+        return True
+    except Exception as e:
+        print(f"[WARN] Failed to initialize Ollama client: {e}")
+        print("[INFO] Ollama PII detection disabled")
+        ollama_enabled = False
         return False
 
 def chunk_text_intelligently(text: str, max_chunk_size: int = 3000) -> List[str]:
@@ -266,6 +287,122 @@ Text to analyze (chunk {chunk_idx + 1}/{len(text_chunks)}):
 
     print(f"[Gemini] Total found across all chunks: {len(all_results)} PII items")
     return all_results
+def extract_pii_with_ollama(text: str, enabled_categories: Optional[List[str]] = None) -> List[Tuple[str, str]]:
+    """
+    Use Ollama to identify PII in text with Malaysian context focus
+    Uses generate_json function from ollama_client module
+
+    Args:
+        text: Text to analyze
+        enabled_categories: List of enabled PII categories
+
+    Returns:
+        List of (label, value) tuples
+    """
+    if not ollama_enabled:
+        return []
+
+    if not text or len(text.strip()) < 20:
+        return []
+
+    if enabled_categories is None:
+        enabled_categories = list(SELECTABLE_PII_CATEGORIES.keys())
+
+    text_chunks = chunk_text_intelligently(text, max_chunk_size=3000)
+    all_results = []
+
+    print(f"[Ollama] Processing {len(text_chunks)} text chunks")
+
+    for chunk_idx, chunk in enumerate(text_chunks):
+        try:
+            categories_desc = {
+                "NAMES": "Personal names (Malaysian names like 'Ahmad bin Ali', 'WONG JUN KEAT', 'Ramba anak Sumping')",
+                "RACES": "Ethnic/racial information (Malay, Chinese, Indian, Iban, Dayak, etc.)",
+                "ORG_NAMES": "Company and organization names (banks, corporations, government agencies)",
+                "STATUS": "Marital/social status (married, single, etc.)",
+                "LOCATIONS": "Geographic locations and addresses (Malaysian cities, states, postal codes)",
+                "RELIGIONS": "Religious affiliations",
+                "TRANSACTION NAME": "Transaction descriptions and references"
+            }
+
+            enabled_desc = [f"- {cat}: {categories_desc.get(cat, cat)}" for cat in enabled_categories if cat in categories_desc]
+            categories_text = "\n".join(enabled_desc)
+
+            prompt = f"""Anda adalah pakar pengesanan PII yang mengetahui dokumen kewangan dan identiti Malaysia.
+
+Semak teks berikut dan kenal pasti entiti PII. Fokus pada kategori-kategori ini:
+{categories_text}
+
+PERATURAN PENGDALIAN PENTING:
+1. SENTIASA kenal pasti item sensitif ini regardless of category settings:
+   - Nombor IC (format: 123456-78-9012 atau sejenis)
+   - Nombor akaun (urutan digit panjang: 1234567890123456)
+   - Nombor telefon (+60123456789, 03-77855409, dll)
+   - Alamat e-mel
+   - Nombor kad kredit
+
+2. Untuk konteks Malaysia:
+   - Nama: Lihat corak penamaan Malaysia (bin, binti, anak, nama Cina seperti WONG, LIM, TAN)
+   - Lokasi: Bandar-bandar Malaysia (KUALA LUMPUR, PETALING JAYA, JOHOR BAHRU, dll)
+   - Bank: Nama bank Malaysia (Maybank, CIMB, Public Bank, dll)
+
+3. ABAIKAN artefak dokumen ini:
+   - MALAYSIA, KAD PENGENALAN, IDENTITY CARD, LELAKI, PEREMPUAN, WARGANEGARA
+   - COPY, CONFIDENTIAL, SPECIMEN, SAMPLE
+   - Label dan tajuk borang
+
+4. Khas untuk penyata bank:
+   - Nama pemegang akaun
+   - Nombor akaun (biasanya 10-16 digit)
+   - Nombor rujukan transaksi
+   - Kod cawangan dan alamat
+   - Nombor telefon dan maklum balas
+
+Kembalikan HANYA array JSON dengan format yang tepat ini:
+[
+  {{"category": "NAMES", "value": "WONG JUN KEAT", "confidence": 0.95}},
+  {{"category": "ACCOUNT", "value": "1234567890123456", "confidence": 1.0}},
+  {{"category": "PHONE", "value": "03-77855409", "confidence": 0.9}}
+]
+
+Teks untuk dianalisis (ketua {chunk_idx + 1}/{len(text_chunks)}):
+{chunk}"""
+
+            system_prompt = "Anda adalah pakar pengesanan PII. Kembalikan JSON yang sah sahaja."
+            response_text = generate_json(system_prompt, prompt)
+
+            json_start = response_text.find('[')
+            json_end = response_text.rfind(']') + 1
+
+            if json_start >= 0 and json_end > json_start:
+                json_text = response_text[json_start:json_end]
+                pii_data = json.loads(json_text)
+
+                chunk_results = []
+                for item in pii_data:
+                    if isinstance(item, dict) and 'category' in item and 'value' in item:
+                        category = item['category']
+                        value = item['value'].strip()
+                        confidence = item.get('confidence', 0.8)
+
+                        if confidence >= 0.7 and value:
+                            chunk_results.append((category, value))
+
+                all_results.extend(chunk_results)
+                print(f"[Ollama] Chunk {chunk_idx + 1}: Found {len(chunk_results)} PII items")
+            else:
+                print(f"[WARN] Ollama chunk {chunk_idx + 1}: No valid JSON in response")
+
+        except json.JSONDecodeError as e:
+            print(f"[WARN] Ollama chunk {chunk_idx + 1}: JSON parsing failed: {e}")
+            continue
+        except Exception as e:
+            print(f"[WARN] Ollama chunk {chunk_idx + 1}: Processing failed: {e}")
+            continue
+
+    print(f"[Ollama] Total found across all chunks: {len(all_results)} PII items")
+    return all_results
+
 
 def validate_pii_with_gemini_context(text: str, candidate_pii: List[Tuple[str, str]], enabled_categories: Optional[List[str]] = None) -> List[Tuple[str, str]]:
     """
@@ -394,13 +531,15 @@ Focus on protecting individual privacy while removing corporate/institutional in
 
 def combine_pii_results(presidio_results: List[Tuple[str, str]],
                        ner_results: List[Tuple[str, str]],
-                       gemini_results: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+                       gemini_results: List[Tuple[str, str]],
+                       ollama_results: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
     """
     Combine results from multiple PII detection methods using enhanced consensus mechanism
     Args:
         presidio_results: Results from Presidio/regex detection
         ner_results: Results from NER model (may be empty if failed)
-    gemini_results: Results from Gemini
+        gemini_results: Results from Gemini
+        ollama_results: Results from Ollama
     Returns:
         Combined and deduplicated results
     """
@@ -412,9 +551,11 @@ def combine_pii_results(presidio_results: List[Tuple[str, str]],
         methods_used.append("NER")
     if gemini_results:
         methods_used.append("Gemini")
+    if ollama_results:
+        methods_used.append("Ollama")
     print(f"[CONSENSUS] Active detection methods: {', '.join(methods_used)}")
     # Combine all results
-    all_results = presidio_results + ner_results + gemini_results
+    all_results = presidio_results + ner_results + gemini_results + ollama_results
     if not all_results:
         print("[CONSENSUS] No PII detected by any method")
         return []
@@ -443,7 +584,9 @@ def combine_pii_results(presidio_results: List[Tuple[str, str]],
                     label_sources[label] = []
                 label_votes[label] += 1
                 # Determine source method (approximate)
-                if (label, value) in gemini_results:
+                if (label, value) in ollama_results:
+                    label_sources[label].append("Ollama")
+                elif (label, value) in gemini_results:
                     label_sources[label].append("Gemini")
                 elif (label, value) in presidio_results:
                     label_sources[label].append("Presidio")
@@ -457,6 +600,8 @@ def combine_pii_results(presidio_results: List[Tuple[str, str]],
                 # Boost score based on source reliability
                 if "Gemini" in label_sources[label]:
                     score += 2  # Gemini gets priority for context awareness
+                if "Ollama" in label_sources[label]:
+                    score += 1
                 if "Presidio" in label_sources[label]:
                     score += 1  # Regex patterns are reliable
                 if score > best_score:
@@ -834,12 +979,17 @@ def extract_all_pii(text, enabled_categories=None):
     if not gemini_enabled:
         load_gemini_client()
 
+    # Initialize Ollama client if not already done
+    if not ollama_enabled:
+        load_ollama_client()
+
     print(f"[INFO] PII detection started - Enabled categories: {enabled_categories}")
-    print(f"[INFO] Detection methods: NER + Regex + Dictionary + {'Gemini' if gemini_enabled else 'No Gemini'}")
+    print(f"[INFO] Detection methods: NER + Regex + Dictionary + {'Gemini' if gemini_enabled else 'No Gemini'} + {'Ollama' if ollama_enabled else 'No Ollama'}")
 
     presidio_regex_results = []
     ner_results = []
     gemini_results = []
+    ollama_results = []
 
     # --- 1. NER extraction (fine-grained) with token limit handling ---
     try:
@@ -964,9 +1114,20 @@ def extract_all_pii(text, enabled_categories=None):
         else:
             print(f"[INFO] Gemini detection skipped (text too short: {len(text.strip())} chars < 20)")
 
-    # --- 5. Result merging and consensus mechanism (Stage 1 Complete) ---
+    # --- 5. Ollama Enhanced Detection (Malaysian-focused) ---
+    if ollama_enabled and len(text.strip()) >= 20:
+        print("[INFO] Starting Ollama enhanced detection...")
+        ollama_results = extract_pii_with_ollama(text, enabled_categories)
+        print(f"[Ollama] Found {len(ollama_results)} entities")
+    else:
+        if not ollama_enabled:
+            print("[INFO] Ollama detection skipped (not enabled)")
+        else:
+            print(f"[INFO] Ollama detection skipped (text too short: {len(text.strip())} chars < 20)")
+
+    # --- 6. Result merging and consensus mechanism (Stage 1 Complete) ---
     print("[INFO] Stage 1: Apply consensus mechanism to merge test results...")
-    stage1_results = combine_pii_results(presidio_regex_results, ner_results, gemini_results)
+    stage1_results = combine_pii_results(presidio_regex_results, ner_results, gemini_results, ollama_results)
 
     # --- 6. Deduplication + Filtering Non-sensitive Words (Stage 1 Filtering) ---
     seen = set()
