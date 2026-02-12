@@ -302,9 +302,13 @@ function handleRegister(event) {
     });
 }
 
-// Logout Handler
+ // Logout Handler
 function handleLogout() {
     const token = getAccessToken();
+    
+    // Hide logout link immediately
+    const logoutLink = document.getElementById('logout-link');
+    if (logoutLink) logoutLink.style.display = 'none';
     
     // Call backend logout endpoint to invalidate session
     if (token) {
@@ -361,13 +365,16 @@ async function refreshAccessToken() {
     }
 }
 
-// Check Authentication Status
+ // Check Authentication Status
 function checkAuthStatus() {
     const token = getAccessToken();
     
     if (!token || isTokenExpired()) {
         // Clear invalid tokens
-        clearTokens();
+        
+        // Hide logout link if not authenticated
+        const logoutLink = document.getElementById('logout-link');
+        if (logoutLink) logoutLink.style.display = 'none';
         
         // Check if we're on a protected page
         const protectedPaths = ['/', '/decrypt', '/human-review'];
@@ -388,7 +395,11 @@ function checkAuthStatus() {
         return Promise.resolve(false);
     }
     
-    return Promise.resolve(true);
+    // Show logout link if authenticated
+    const logoutLink = document.getElementById('logout-link');
+    if (logoutLink) logoutLink.style.display = 'block';
+    
+     return Promise.resolve(true);
 }
 
 // Initialize on page load
@@ -461,14 +472,19 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePasswordVisibility('confirm_password', 'toggle-confirm-password');
     });
     
-    // Logout link
-    const logoutLink = document.getElementById('logout-link');
-    if (logoutLink) {
-        logoutLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            handleLogout();
-        });
-    }
+     // Logout link
+     const logoutLink = document.getElementById('logout-link');
+     if (logoutLink) {
+         // Show logout link if user is authenticated
+         const token = getAccessToken();
+         if (token && !isTokenExpired()) {
+             logoutLink.style.display = 'block';
+         }
+         logoutLink.addEventListener('click', (e) => {
+             e.preventDefault();
+             handleLogout();
+         });
+     }
     
     // Check auth status on page load for protected pages
     if (window.location.pathname === '/' || window.location.pathname === '/decrypt') {

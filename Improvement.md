@@ -5,6 +5,7 @@ ss -tulpn | grep 127.0.0.1
 
 Username: admin
 Password: Zu9_KdHzS;sr
+Password: Kc8[2rPyW7_t
 Email: admin@Protector.local
 Full Name: System Administrator
 Is Active: Yes
