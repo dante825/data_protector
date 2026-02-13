@@ -8,16 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  ## [Unreleased]
 
  ### Added
- - Chinese character name detection using regex patterns
- - Enhanced LLM prompts with Chinese name examples (e.g., 王伟, 李娜, 张强)
- - Support for 2-4 character Chinese names in PII extraction
- - Validation for Chinese name format (Unicode range U+4E00-U+9FFF)
-
-### Added
-- Full JWT-based authentication system
-- User registration, login, logout, and token refresh endpoints
-- API key generation and management
-- Authentication middleware for all API routes
+ - Comprehensive name detection for all ethnicities (English, Indian, Malay, Chinese)
+ - Enhanced LLM prompts with name examples for all name types
+ - English names: Yap En Chong, Alfred Lee Chee Shing, Jeremy Tan Choo Hau, Dennis Smith
+ - Indian names: Raj Kumar a/l Subramaniam, Priya Devi a/l Venkat, Lim Wei Jian
+ - Malay names: Ahmad bin Ali, Siti binti Hassan, Lim Wei Jian, Janting anak Sumping
+ - Chinese character names: 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明
+ - Names dictionary expanded with 70+ new names from all ethnic groups
 - User and Session database models
 
 ### Changed
