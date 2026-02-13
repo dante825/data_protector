@@ -24,7 +24,7 @@ def run_pdf_processing(pdf_path: str, enabled_pii_categories=None):
 
     # Default to all selectable categories if none specified
     if enabled_pii_categories is None:
-        enabled_pii_categories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']
+        enabled_pii_categories = ['NAMES', 'ORG_NAMES']
 
     print(f"[INFO] PDF processing started: {pdf_path}")
     print(f"[INFO] Enabled PII categories: {enabled_pii_categories}")

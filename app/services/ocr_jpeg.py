@@ -183,7 +183,7 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
     # === Step 3: Extract PII (supports selective category filtering) ===
     # Default to all selectable categories if none specified
     if enabled_pii_categories is None:
-        enabled_pii_categories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']
+        enabled_pii_categories = ['NAMES', 'ORG_NAMES']
 
     print(f"[INFO] Enabled PII categories: {enabled_pii_categories}")
 
@@ -226,7 +226,7 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
 
     # 过滤和处理PII结果
     filtered_pii = []
-    selectable_categories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']
+    selectable_categories = ['NAMES', 'ORG_NAMES']
 
     print("[INFO] Processing PII detection results:")
     for label, value in pii_entries:

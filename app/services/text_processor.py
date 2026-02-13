@@ -6,7 +6,7 @@ import pandas as pd
 import re
 from app.services.aes_gcm import encrypt_with_metadata, decrypt_with_metadata
 from app.services.pii_main import extract_all_pii
-from app.resources.dictionaries import NAMES, ORG_NAMES, RACES, STATUS, LOCATIONS, RELIGIONS
+from app.resources.dictionaries import NAMES, ORG_NAMES
 
 def read_text_file(file_path):
     ext = os.path.splitext(file_path)[1].lower()

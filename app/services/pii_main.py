@@ -967,11 +967,7 @@ def extract_from_dictionaries(text, enabled_categories=None):
 # ✅ Optional PII Category Definitions
 SELECTABLE_PII_CATEGORIES = {
     "NAMES": "Personal names and identities",
-    "RACES": "Ethnic and racial information",
-    "ORG_NAMES": "Company and organization names",
-    "STATUS": "Marital and social status",
-    "LOCATIONS": "Geographic locations and addresses",
-    "RELIGIONS": "Religious affiliations"
+    "ORG_NAMES": "Company and organization names"
 }
 
 # ✅ Non-selective PII categories (always masked)

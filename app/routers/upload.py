@@ -43,9 +43,9 @@ async def upload_files(
         try:
             pii_categories = json.loads(enabled_pii_categories)
         except json.JSONDecodeError:
-            pii_categories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']  # Default
+            pii_categories = ['NAMES', 'ORG_NAMES']  # Default
     else:
-        pii_categories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']  # Default
+        pii_categories = ['NAMES', 'ORG_NAMES']  # Default
 
     print(f"[INFO] Task {task_id}: Enabled PII categories: {pii_categories}")
 
