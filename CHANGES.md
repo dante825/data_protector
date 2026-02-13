@@ -13,12 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - English names: Yap En Chong, Alfred Lee Chee Shing, Jeremy Tan Choo Hau, Dennis Smith
  - Indian names: Raj Kumar a/l Subramaniam, Priya Devi a/l Venkat, Lim Wei Jian
  - Malay names: Ahmad bin Ali, Siti binti Hassan, Lim Wei Jian, Janting anak Sumping
- - Chinese character names: 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明
- - Names dictionary expanded with 70+ new names from all ethnic groups
-- User and Session database models
+  - Chinese character names: 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明
+  - Names dictionary expanded with 70+ new names from all ethnic groups
+  - User and Session database models
 
-### Changed
-- **Encryption**: Replaced Fernet with AES-256-GCM across all processor modules
+ ### Changed
+ - **Categories**: Disabled LOCATIONS, STATUS, RELIGIONS detection (no longer part of SELECTABLE_PII_CATEGORIES)
+ - **UI**: Removed checkboxes for LOCATIONS, STATUS, RELIGIONS categories
+ - **Encryption**: Replaced Fernet with AES-256-GCM across all processor modules
 
 ## [1.0.0] - 2026-02-10
 
