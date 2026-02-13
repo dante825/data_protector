@@ -223,7 +223,10 @@ CRITICAL DETECTION RULES:
    - Credit card numbers
 
 2. For Malaysian context:
-   - Names: Look for Malaysian naming patterns (bin, binti, anak, Chinese names like WONG, LIM, TAN)
+   - Names: Look for Malaysian naming patterns (bin, binti, anak)
+    - English names: Detect first + last names (e.g., Yap En Chong, Alfred Lee Chee Shing, Jeremy Tan Choo Hau, Dennis Smith)
+    - Indian names: Detect names with patronymic patterns (e.g., Raj Kumar a/l Subramaniam, Priya Devi a/l Venkat, Lim Wei Jian)
+    - Malay names: Detect bin/binti/anak patterns (e.g., Ahmad bin Ali, Siti binti Hassan, Janting anak Sumping)
     - Chinese names: Detect full names in Chinese characters (e.g., 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明)
    - Locations: Malaysian cities (KUALA LUMPUR, PETALING JAYA, JOHOR BAHRU, etc.)
    - Banks: Malaysian bank names (Maybank, CIMB, Public Bank, etc.)
@@ -343,7 +346,9 @@ PERATURAN PENGDALIAN PENTING:
    - Nombor kad kredit
 
 2. Untuk konteks Malaysia:
-   - Nama: Lihat corak penamaan Malaysia (bin, binti, anak, nama Cina seperti WONG, LIM, TAN)
+   - Nama Inggeris: Kenal pasti nama pertama + nama keluarga (contoh: Yap En Chong, Alfred Lee Chee Shing, Jeremy Tan Choo Hau, Dennis Smith)
+   - Nama India: Kenal pasti nama dengan corak patronimik (contoh: Raj Kumar a/l Subramaniam, Priya Devi a/l Venkat, Lim Wei Jian)
+   - Nama Melayu: Kenal pasti corak bin/binti/anak (contoh: Ahmad bin Ali, Siti binti Hassan, Janting anak Sumping)
     - Nama Cina: Kenal pasti nama penuh dalam aksara Cina (contoh: 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明)
    - Lokasi: Bandar-bandar Malaysia (KUALA LUMPUR, PETALING JAYA, JOHOR BAHRU, dll)
    - Bank: Nama bank Malaysia (Maybank, CIMB, Public Bank, dll)
