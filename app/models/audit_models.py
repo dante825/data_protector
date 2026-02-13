@@ -76,7 +76,7 @@ class PIIProcessingLog(Base):
     processing_time_seconds = Column(Float)
     
     # Category breakdown
-    selectable_pii_found = Column(JSON)  # {"NAMES": 5, "RACES": 2, ...}
+    selectable_pii_found = Column(JSON)  # {"NAMES": 5, "ORG_NAMES": 2, ...}
     non_selectable_pii_found = Column(JSON)  # {"IC": 3, "EMAIL": 2, ...}
     masked_categories = Column(JSON)  # Categories that were actually masked
     

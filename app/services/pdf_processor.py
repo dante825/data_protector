@@ -11,7 +11,7 @@ def run_pdf_processing(pdf_path: str, enabled_pii_categories=None):
 
     Args:
         pdf_path (str): Path to the input PDF file
-        enabled_pii_categories (list): List of PII categories to mask (e.g., ['NAMES', 'RACES'])
+        enabled_pii_categories (list): List of PII categories to mask (e.g., ['NAMES', 'ORG_NAMES'])
 
     Returns:
         dict: Processing results with paths to masked PDF, JSON, and key files

@@ -5,7 +5,7 @@ import json
 import time
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict, Any
-from app.resources.dictionaries import NAMES, ORG_NAMES, RACES, STATUS, LOCATIONS, RELIGIONS
+from app.resources.dictionaries import NAMES, ORG_NAMES
 
 from app.config.ollama_config import OLLAMA_ENABLED
 from app.services.ollama_client import generate_json
@@ -197,12 +197,6 @@ def extract_pii_with_gemini(text: str, enabled_categories: Optional[List[str]] =
             # Create enhanced category-specific prompt for financial documents
             categories_desc = {
                 "NAMES": "Personal names (Malaysian names like 'Ahmad bin Ali', 'WONG JUN KEAT', 'Ramba anak Sumping')",
-                "RACES": "Ethnic/racial information (Malay, Chinese, Indian, Iban, Dayak, etc.)",
-                "ORG_NAMES": "Company and organization names (banks, corporations, government agencies)",
-                "STATUS": "Marital/social status (married, single, etc.)",
-                "LOCATIONS": "Geographic locations and addresses (Malaysian cities, states, postal codes)",
-                "RELIGIONS": "Religious affiliations",
-                "TRANSACTION NAME": "Transaction descriptions and references"
             }
 
             enabled_desc = [f"- {cat}: {categories_desc.get(cat, cat)}" for cat in enabled_categories if cat in categories_desc]
@@ -321,10 +315,6 @@ def extract_pii_with_ollama(text: str, enabled_categories: Optional[List[str]] =
         try:
             categories_desc = {
                 "NAMES": "Personal names (Malaysian names like 'Ahmad bin Ali', 'WONG JUN KEAT', 'Ramba anak Sumping')",
-                "RACES": "Ethnic/racial information (Malay, Chinese, Indian, Iban, Dayak, etc.)",
-                "ORG_NAMES": "Company and organization names (banks, corporations, government agencies)",
-                "STATUS": "Marital/social status (married, single, etc.)",
-                "LOCATIONS": "Geographic locations and addresses (Malaysian cities, states, postal codes)",
                 "RELIGIONS": "Religious affiliations",
                 "TRANSACTION NAME": "Transaction descriptions and references"
             }
@@ -878,12 +868,6 @@ def is_phone_number(number_str):
     return len(clean_num) in [10, 11, 12] and (clean_num.startswith('01') or clean_num.startswith('03'))
 
 # === Malaysia location whitelist (to prevent accidental merging) ===
-MALAYSIA_LOCATIONS = {
-    "KUALA LUMPUR", "PETALING JAYA", "SELANGOR", "JOHOR", "JOHOR BAHRU",
-    "PENANG", "GEORGETOWN", "ALOR SETAR", "KELANTAN", "TERENGGANU",
-    "MELAKA", "KUCHING", "KOTA KINABALU", "LABUAN", "SABAH", "SARAWAK"
-}
-
 def extract_from_dictionaries(text, enabled_categories=None):
     """
     Extracts PII from a dictionary, supporting selective category filtering
@@ -924,41 +908,6 @@ def extract_from_dictionaries(text, enabled_categories=None):
                     print(f"[DEBUG] Find the organization name: {org}")
 
     # 3. Race Matching
-    if "RACES" in enabled_categories:
-        for race in RACES:
-            if race.lower() in text_lower:
-                pattern = r'\b' + re.escape(race.lower()) + r'\b'
-                if re.search(pattern, text_lower):
-                    results.append(("RACES", race))
-                    print(f"[DEBUG] Find the race: {race}")
-
-    # 4. State Matching
-    if "STATUS" in enabled_categories:
-        for status in STATUS:
-            if status.lower() in text_lower:
-                pattern = r'\b' + re.escape(status.lower()) + r'\b'
-                if re.search(pattern, text_lower):
-                    results.append(("STATUS", status))
-                    print(f"[DEBUG] Found status: {status}")
-
-    # 5. Location Matching
-    if "LOCATIONS" in enabled_categories:
-        for location in LOCATIONS:
-            if location.lower() in text_lower:
-                # Locations may contain special characters, use a looser match
-                if location.lower() in text_lower:
-                    results.append(("LOCATIONS", location))
-                    print(f"[DEBUG] Find the location: {location}")
-
-    # 6. Religious Match
-    if "RELIGIONS" in enabled_categories:
-        for religion in RELIGIONS:
-            if religion.lower() in text_lower:
-                pattern = r'\b' + re.escape(religion.lower()) + r'\b'
-                if re.search(pattern, text_lower):
-                    results.append(("RELIGIONS", religion))
-                    print(f"[DEBUG] Find religion: {religion}")
-
     print(f"[DEBUG] Dictionary matching results: Found {len(results)} PII items")
     for label, value in results:
         print(f"[DEBUG]   - {label}: {value}")
@@ -991,7 +940,7 @@ def extract_all_pii(text, enabled_categories=None):
 
     Args:
         text: Text to analyze
-        enabled_categories: A list of selective PII categories to enable, such as ["NAMES", "RACES"]
+        enabled_categories: A list of selective PII categories to enable, such as ['NAMES', 'ORG_NAMES']
                 If None, all categories are enabled.
 
     Returns:

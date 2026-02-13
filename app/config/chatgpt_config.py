@@ -35,25 +35,9 @@ CHATGPT_PII_CATEGORIES = {
         "examples": ["Ahmad bin Ali", "Ramba anak Sumping", "Siti binti Hassan"],
         "priority": "high"
     },
-    "RACES": {
-        "description": "Ethnic and racial information",
-        "examples": ["Malay", "Chinese", "Indian", "Iban", "Dayak", "Kadazan"],
-        "priority": "medium"
-    },
     "ORG_NAMES": {
         "description": "Company and organization names",
         "examples": ["ABC Company Sdn Bhd", "Universiti Malaya", "Bank Negara Malaysia"],
-        "priority": "medium"
-    },
-    "STATUS": {
-        "description": "Marital and social status information",
-        "examples": ["Married", "Single", "Divorced", "Widowed"],
-        "priority": "low"
-    },
-    "LOCATIONS": {
-        "description": "Geographic locations and detailed addresses",
-        "examples": ["Kuala Lumpur", "Jalan Ampang", "Taman Tun Dr Ismail"],
-        "priority": "high"
     },
     "RELIGIONS": {
         "description": "Religious affiliations and beliefs",

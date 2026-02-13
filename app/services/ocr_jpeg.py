@@ -10,7 +10,7 @@ import sys
 import base64
 
 from app.services.pii_main import extract_all_pii, extract_from_dictionaries
-from app.resources.dictionaries import NAMES, ORG_NAMES, RACES, STATUS
+from app.resources.dictionaries import NAMES, ORG_NAMES
 import re
 
 def _should_ignore_word(text, ignore_words):
@@ -221,8 +221,6 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
     }
 
     # ✅ Malaysia location whitelist (for LOC filtering)
-    MALAYSIA_LOCATIONS = {
-    }
 
     # 过滤和处理PII结果
     filtered_pii = []
