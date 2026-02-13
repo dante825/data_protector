@@ -5,7 +5,13 @@ All notable changes to Project Protector will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+ ## [Unreleased]
+
+ ### Added
+ - Chinese character name detection using regex patterns
+ - Enhanced LLM prompts with Chinese name examples (e.g., 王伟, 李娜, 张强)
+ - Support for 2-4 character Chinese names in PII extraction
+ - Validation for Chinese name format (Unicode range U+4E00-U+9FFF)
 
 ### Added
 - Full JWT-based authentication system
