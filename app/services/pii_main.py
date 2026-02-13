@@ -224,6 +224,7 @@ CRITICAL DETECTION RULES:
 
 2. For Malaysian context:
    - Names: Look for Malaysian naming patterns (bin, binti, anak, Chinese names like WONG, LIM, TAN)
+    - Chinese names: Detect full names in Chinese characters (e.g., 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明)
    - Locations: Malaysian cities (KUALA LUMPUR, PETALING JAYA, JOHOR BAHRU, etc.)
    - Banks: Malaysian bank names (Maybank, CIMB, Public Bank, etc.)
 
@@ -343,6 +344,7 @@ PERATURAN PENGDALIAN PENTING:
 
 2. Untuk konteks Malaysia:
    - Nama: Lihat corak penamaan Malaysia (bin, binti, anak, nama Cina seperti WONG, LIM, TAN)
+    - Nama Cina: Kenal pasti nama penuh dalam aksara Cina (contoh: 王伟, 李娜, 张强, 刘芳, 陈杰, 杨明)
    - Lokasi: Bandar-bandar Malaysia (KUALA LUMPUR, PETALING JAYA, JOHOR BAHRU, dll)
    - Bank: Nama bank Malaysia (Maybank, CIMB, Public Bank, dll)
 
@@ -749,6 +751,29 @@ def extract_credit_card(text):
                 matches.append(match)
     return matches
 
+
+def extract_chinese_names(text):
+    """Extract Chinese character names (2-4 characters)"""
+    patterns = [
+        r'[\u4e00-\u9fff]{2,4}',
+    ]
+    matches = []
+    for pattern in patterns:
+        found = re.findall(pattern, text)
+        for match in found:
+            if validate_chinese_name(match):
+                matches.append(match)
+    return matches
+
+def validate_chinese_name(name):
+    """Validate Chinese name format (2-4 Chinese characters)"""
+    if len(name) < 2 or len(name) > 4:
+        return False
+    for char in name:
+        if not (0x4e00 <= ord(char) <= 0x9fff):
+            return False
+    return True
+
 def extract_malaysian_address(text):
     """Extract Malaysia Address"""
     patterns = [
@@ -1086,6 +1111,7 @@ def extract_all_pii(text, enabled_categories=None):
         "Nationality": extract_nationality,
         "Credit Card": extract_credit_card,
         "Address": extract_malaysian_address,
+         "Names": extract_chinese_names,
         "Vehicle Registration": extract_vehicle_registration,
     }
 
