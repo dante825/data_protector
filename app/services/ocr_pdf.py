@@ -70,16 +70,18 @@ def process_image_with_mask(image_path, reader, key_path, enabled_pii_categories
     base_path, _ = os.path.splitext(key_path)
     json_path = f"{base_path}_page_{page_number}.json"
 
-    # Process the image and get the results
+     # Process the image and get the results
     masked_image_path, page_json_path, key_file = mask_sensitive_text(
-        image_path=image_path,
-        key_path=key_path,
-        reader=reader,
-        output_json_path=json_path,
-        enabled_pii_categories=enabled_pii_categories
-    )
+         image_path=image_path,
+         key_path=key_path,
+         reader=reader,
+         output_json_path=json_path,
+         enabled_pii_categories=enabled_pii_categories
+     )
 
-    # Add page information to the JSON data
+     # Tag format: [ENC:{Label}_{8-char-hash}]
+     # Examples: [ENC:NAMES_abcd1234], [ENC:Email_wxyz5678], [ENC:Phone_defg9012]
+     # Add page information to the JSON data
     if os.path.exists(page_json_path):
         import json
         with open(page_json_path, 'r', encoding='utf-8') as f:

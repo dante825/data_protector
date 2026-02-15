@@ -16,7 +16,7 @@ def run_ocr_jpeg(image_path: str, enabled_pii_categories=None):
     try:
         # Default to all selectable categories if none specified
         if enabled_pii_categories is None:
-            enabled_pii_categories = ['NAMES', 'ORG_NAMES']
+            enabled_pii_categories = ['NAMES', 'ETHNIC', 'ORG_NAMES']
 
         print(f"[INFO] Processing image with enabled PII categories: {enabled_pii_categories}")
 

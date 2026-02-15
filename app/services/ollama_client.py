@@ -119,18 +119,16 @@ def generate_json(system_prompt: str, user_prompt: str, use_json_mode: bool = Tr
     last_error = None
     for attempt in range(OLLAMA_MAX_RETRIES):
         try:
+            # Prepare chat parameters
+            chat_params = {
+                "model": OLLAMA_MODEL,
+                "messages": messages,
+                "options": options
+            }
             if use_json_mode:
-                response = client.chat(
-                    model=OLLAMA_MODEL,
-                    messages=messages,
-                    options=options
-                )
-            else:
-                response = client.chat(
-                    model=OLLAMA_MODEL,
-                    messages=messages,
-                    options=options
-                )
+                chat_params["format"] = "json"
+            
+            response = client.chat(**chat_params)
             
             # Update last call time
             _last_call_time = time.time()

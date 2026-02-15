@@ -401,6 +401,102 @@ Teks untuk dianalisis (ketua {chunk_idx + 1}/{len(text_chunks)}):
     return all_results
 
 
+def extract_entities_with_ollama(text: str, enabled_categories: list) -> list:
+    """
+    Extract PII entities using Ollama with proper entity boundary detection.
+    Focuses on extracting COMPLETE entity names including all parts (not partial matches).
+    Malaysian context: bin, binti, anak patterns, organization suffixes (Sdn Bhd, Berhad, etc.)
+    
+    Args:
+        text: Text to analyze
+        enabled_categories: List of enabled PII categories (NAMES, ORG_NAMES)
+    
+    Returns:
+        List of (label, value) tuples with high-confidence entities
+    """
+    print(f"[Ollama-ENTITIES] Starting entity extraction with boundary detection...")
+    
+    if not ollama_enabled:
+        print("[Ollama-ENTITIES] Ollama not enabled, returning empty list")
+        return []
+    
+    if not text or len(text.strip()) < 20:
+        print("[Ollama-ENTITIES] Text too short, returning empty list")
+        return []
+    
+    if not enabled_categories:
+        print("[Ollama-ENTITIES] No categories enabled, returning empty list")
+        return []
+    
+    text_chunks = chunk_text_intelligently(text, max_chunk_size=3000)
+    all_results = []
+    
+    print(f"[Ollama-ENTITIES] Processing {len(text_chunks)} text chunks")
+    
+    for chunk_idx, chunk in enumerate(text_chunks):
+        try:
+            # Build simple category descriptions
+            categories_parts = []
+            if "NAMES" in enabled_categories:
+                categories_parts.append("PERSONAL NAMES: Extract COMPLETE names including ALL parts. Examples: 'Ahmad bin Ali', 'WONG JUN KEAT'.")
+            if "ORG_NAMES" in enabled_categories:
+                categories_parts.append("ORGANIZATION NAMES: Extract COMPLETE names including ALL suffixes (Sdn Bhd, Berhad, Holdings, Ltd, Inc). Examples: 'ABC Holdings Berhad', 'XYZ Sdn Bhd'.")
+            
+            categories_text = " ".join(categories_parts)
+            
+            prompt = f"""Extract PII entities from the text. 
+
+{categories_text}
+
+INSTRUCTIONS:
+- Extract COMPLETE entity names - NEVER partial matches
+- Return only the entity text, don't add explanations
+- Include all name/suffix parts
+
+Return ONLY a JSON array with this exact format:
+[
+  {{"category": "NAMES"|"ORG_NAMES", "value": "COMPLETE ENTITY TEXT", "confidence": 0.95}}
+]
+
+Text to analyze (chunk {chunk_idx + 1}/{len(text_chunks)}):
+{chunk}"""
+
+            system_prompt = "Return only valid JSON with complete entity names."
+            response_text = generate_json(system_prompt, prompt)
+            
+            json_start = response_text.find('[')
+            json_end = response_text.rfind(']') + 1
+            
+            if json_start >= 0 and json_end > json_start:
+                json_text = response_text[json_start:json_end]
+                pii_data = json.loads(json_text)
+                
+                chunk_results = []
+                for item in pii_data:
+                    if isinstance(item, dict) and 'category' in item and 'value' in item:
+                        category = item['category']
+                        value = item['value'].strip()
+                        confidence = item.get('confidence', 0.5)
+                        
+                        if category in enabled_categories and confidence >= 0.7 and value:
+                            chunk_results.append((category, value))
+                
+                all_results.extend(chunk_results)
+                print(f"[Ollama-ENTITIES] Chunk {chunk_idx + 1}: Found {len(chunk_results)} entities")
+            else:
+                print(f"[WARN] Ollama-ENTITIES chunk {chunk_idx + 1}: No valid JSON in response")
+                
+        except json.JSONDecodeError as e:
+            print(f"[WARN] Ollama-ENTITIES chunk {chunk_idx + 1}: JSON parsing failed: {e}")
+            continue
+        except Exception as e:
+            print(f"[WARN] Ollama-ENTITIES chunk {chunk_idx + 1}: Processing failed: {e}")
+            continue
+    
+    print(f"[Ollama-ENTITIES] Total found across all chunks: {len(all_results)} entities")
+    return all_results
+
+
 def validate_pii_with_gemini_context(text: str, candidate_pii: List[Tuple[str, str]], enabled_categories: Optional[List[str]] = None) -> List[Tuple[str, str]]:
     """
     Stage 2: Use Gemini to validate and filter PII candidates based on context
@@ -887,15 +983,18 @@ def extract_from_dictionaries(text, enabled_categories=None):
 
     results = []
     text_lower = text.lower()
+    
+    # Cache matches to find longest (most specific) match
+    name_matches = []
+    org_matches = []
 
     # 1. Full name matching (highest priority)
     if "NAMES" in enabled_categories:
         for name in NAMES:
             if name.lower() in text_lower:
-                # Make sure it matches the entire word, not a partial one
                 pattern = r'\b' + re.escape(name.lower()) + r'\b'
                 if re.search(pattern, text_lower):
-                    results.append(("NAMES", name))
+                    name_matches.append(name)
                     print(f"[DEBUG] Find full name: {name}")
 
     # 2. Full organization name matching
@@ -904,8 +1003,19 @@ def extract_from_dictionaries(text, enabled_categories=None):
             if org.lower() in text_lower:
                 pattern = r'\b' + re.escape(org.lower()) + r'\b'
                 if re.search(pattern, text_lower):
-                    results.append(("ORG_NAMES", org))
+                    org_matches.append(org)
                     print(f"[DEBUG] Find the organization name: {org}")
+
+    # Use longest match for each category (most specific)
+    if name_matches:
+        longest_name = max(name_matches, key=len)
+        results.append(("NAMES", longest_name))
+        print(f"[DEBUG] Selected longest name match: {longest_name}")
+    
+    if org_matches:
+        longest_org = max(org_matches, key=len)
+        results.append(("ORG_NAMES", longest_org))
+        print(f"[DEBUG] Selected longest org match: {longest_org}")
 
     # 3. Race Matching
     print(f"[DEBUG] Dictionary matching results: Found {len(results)} PII items")
@@ -916,10 +1026,12 @@ def extract_from_dictionaries(text, enabled_categories=None):
 # ✅ Optional PII Category Definitions
 SELECTABLE_PII_CATEGORIES = {
     "NAMES": "Personal names and identities",
-    "ORG_NAMES": "Company and organization names"
+    "ORG_NAMES": "Company and organization names",
+    "ETHNIC": "Ethnic/religious affiliations (LLM detection only)"
 }
 
 # ✅ Non-selective PII categories (always masked)
+# Note: Email and Phone use [ENC:Email_*] and [ENC:Phone_*] tags respectively
 NON_SELECTABLE_PII_CATEGORIES = {
     "IC": "Malaysian IC numbers",
     "Email": "Email addresses",
@@ -927,7 +1039,6 @@ NON_SELECTABLE_PII_CATEGORIES = {
     "Bank Account": "Bank account numbers",
     "Passport": "Passport numbers",
     "Phone": "Phone numbers",
-    "Money": "Financial amounts",
     "Credit Card": "Credit card numbers",
     "Address": "Street addresses",
     "Vehicle Registration": "Vehicle registration numbers"
@@ -959,7 +1070,7 @@ def extract_all_pii(text, enabled_categories=None):
         load_ollama_client()
 
     print(f"[INFO] PII detection started - Enabled categories: {enabled_categories}")
-    print(f"[INFO] Detection methods: NER + Regex + Dictionary + {'Gemini' if gemini_enabled else 'No Gemini'} + {'Ollama' if ollama_enabled else 'No Ollama'}")
+    print(f"[INFO] Detection methods: Primary=Ollama + Secondary=NER + Regex + Dictionary + {'Gemini' if gemini_enabled else 'No Gemini'}")
 
     presidio_regex_results = []
     ner_results = []
@@ -1022,14 +1133,24 @@ def extract_all_pii(text, enabled_categories=None):
         current_label = ""
 
         for tok in tokens:
-            # If it is a new word, end the current word
+            # Handle new word detection with proper entity merging
             if current_label and tok["is_new_word"]:
                 if current_word:
-                    ner_results.append((current_label, current_word))
-                current_word = tok["word"]
-                current_label = tok["entity"]
-            # If it is a continuation (starting with ## or ), and the entity types are the same, then concatenate
+                    # If same entity, continue building with space
+                    # If different entity, append current and start new
+                    if current_label == tok["entity"]:
+                        current_word += " " + tok["word"]
+                    else:
+                        ner_results.append((current_label, current_word))
+                        current_word = tok["word"]
+                        current_label = tok["entity"]
+                else:
+                    current_word = tok["word"]
+                    current_label = tok["entity"]
+            # If it is a continuation (starting with ##), and the entity types are the same, then concatenate
             elif current_label == tok["entity"]:
+                if current_word:
+                    current_word += " "
                 current_word += tok["word"]
             # Different types, end the old one first, then start the new one
             else:
@@ -1044,26 +1165,44 @@ def extract_all_pii(text, enabled_categories=None):
 
         print(f"[NER] Found {len(ner_results)} entities")
 
+        # Map NER labels to application categories
+        ner_label_mapping = {
+            "PER": "NAMES",
+            "ORG": "ORG_NAMES",
+            "LOC": None,  # Exclude locations
+            "MISC": None  # Exclude Miscellaneous
+        }
+        
+        mapped_ner_results = []
+        for label, value in ner_results:
+            if label in ner_label_mapping:
+                if ner_label_mapping[label] is not None:
+                    mapped_ner_results.append((ner_label_mapping[label], value))
+            else:
+                mapped_ner_results.append((label, value))
+        
+        ner_results = mapped_ner_results
+        print(f"[NER] After mapping: {len(ner_results)} entities")
+
     except Exception as e:
         print(f"[WARN] NER extraction failed: {e}")
     print("[INFO] Continuing with regex and Gemini detection methods")
 
-    # --- 2. Enhanced regular rule supplement ---
+     # --- 2. Enhanced regular rule supplement ---
+     # Note: Money, Gender, Nationality are extracted but NOT in NON_SELECTABLE_PII_CATEGORIES
+     # This means they depend on user selection in ocr_jpeg.py, but always masked in text processors
     extractors = {
-        "IC": extract_ic,
-        "Email": extract_email,
-        "DOB": extract_dob,
-        "Bank Account": extract_bank_account,
-        "Passport": extract_passport,
-        "Phone": extract_phone,
-        "Money": extract_money,
-        "Gender": extract_gender,
-        "Nationality": extract_nationality,
-        "Credit Card": extract_credit_card,
-        "Address": extract_malaysian_address,
-         "Names": extract_chinese_names,
-        "Vehicle Registration": extract_vehicle_registration,
-    }
+         "IC": extract_ic,
+         "Email": extract_email,
+         "DOB": extract_dob,
+         "Bank Account": extract_bank_account,
+         "Passport": extract_passport,
+         "Phone": extract_phone,
+         "Credit Card": extract_credit_card,
+         "Address": extract_malaysian_address,
+          "Names": extract_chinese_names,
+         "Vehicle Registration": extract_vehicle_registration,
+     }
 
     print(f"[INFO] Start regular extraction, total {len(extractors)} PII types")
 
@@ -1092,8 +1231,8 @@ def extract_all_pii(text, enabled_categories=None):
 
     # --- 5. Ollama Enhanced Detection (Malaysian-focused) ---
     if ollama_enabled and len(text.strip()) >= 20:
-        print("[INFO] Starting Ollama enhanced detection...")
-        ollama_results = extract_pii_with_ollama(text, enabled_categories)
+        print("[INFO] Starting Ollama enhanced entity extraction with boundary detection...")
+        ollama_results = extract_entities_with_ollama(text, enabled_categories)
         print(f"[Ollama] Found {len(ollama_results)} entities")
     else:
         if not ollama_enabled:
@@ -1118,6 +1257,32 @@ def extract_all_pii(text, enabled_categories=None):
             stage1_filtered.append((label, value.strip()))  # Keep original case
 
     print(f"[STAGE-1] Initially detected {len(stage1_filtered)} PII candidates")
+
+    # Deduplicate: for overlapping PII matches, keep only the longest one
+    print("[INFO] Deduplicating PII by selecting longest match for overlapping patterns...")
+    deduped_results = []
+    used_values = set()
+    
+    # Sort by length (longest first)
+    sorted_results = sorted(stage1_filtered, key=lambda x: len(x[1]), reverse=True)
+    
+    for label, value in sorted_results:
+        value_clean = value.strip()
+        # Check if this value (or a longer one containing it) has already been used
+        should_skip = False
+        for used in used_values:
+            if value_clean.lower() in used.lower():
+                should_skip = True
+                print(f"[DEDUP] Skipping '{value}' (contained in '{used}')")
+                break
+        
+        if not should_skip:
+            used_values.add(value_clean.lower())
+            deduped_results.append((label, value))
+            print(f"[DEDUP] Keeping '{value}' (label: {label})")
+
+    print(f"[DEDUP] After deduplication: {len(deduped_results)} PII candidates")
+    stage1_filtered = deduped_results
 
     # --- 7. Stage 2: Gemini Contextual Validation (ADDITIVE, not filtering) ---
     if len(stage1_filtered) > 0 and len(text.strip()) >= 100:  # Only for substantial documents

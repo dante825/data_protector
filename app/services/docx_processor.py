@@ -2,11 +2,12 @@ import os
 import json
 import re
 import hashlib
+from typing import Optional
 from app.services.aes_gcm import encrypt_with_metadata, generate_key as generate_key_aes
 from docx import Document
 from app.services.pii_main import extract_all_pii
 
-def mask_docx_sensitive_text(docx_path: str, key_path: str = None, enabled_pii_categories=None):
+def mask_docx_sensitive_text(docx_path: str, key_path: Optional[str] = None, enabled_pii_categories=None):
     if key_path is None:
         key_path = docx_path.replace(".docx", ".key")
 
@@ -25,6 +26,18 @@ def mask_docx_sensitive_text(docx_path: str, key_path: str = None, enabled_pii_c
         full_text += para.text + "\n"
 
     all_pii_list = extract_all_pii(full_text, enabled_pii_categories)
+
+    # Filter by enabled categories
+    non_selectable_categories = ['IC', 'Email', 'DOB', 'Bank Account', 'Passport', 'Phone', 'Credit Card', 'Address', 'Vehicle Registration']
+    filtered_pii_list = []
+    for label, value in all_pii_list:
+        if label in enabled_pii_categories or label in non_selectable_categories:
+            filtered_pii_list.append((label, value))
+            print(f"[FILTER] Masking DOCX: {label} = {value}")
+        else:
+            print(f"[FILTER] Skipping DOCX (not enabled): {label} = {value}")
+
+    all_pii_list = filtered_pii_list
 
     unique_pii = {}
     masked_pii = []
@@ -54,18 +67,10 @@ def mask_docx_sensitive_text(docx_path: str, key_path: str = None, enabled_pii_c
             masked_text = para.text
 
             for pii_value, pii_info in sorted_pii_items:
-                parts = re.split(r'(\[ENC:[^\]]+\])', masked_text)
-
-                for i in range(len(parts)):
-                    if i % 2 == 0 and not parts[i].startswith('[ENC:'):
-                        escaped_pii = re.escape(pii_value)
-                        if len(pii_value) == 1 and pii_value.isdigit():
-                            pattern = r'\b' + escaped_pii + r'\b'
-                        else:
-                            pattern = escaped_pii
-                        parts[i] = re.sub(pattern, pii_info["tag"], parts[i])
-
-                masked_text = ''.join(parts)
+                # Use word boundary regex to replace only complete words
+                escaped_pii = re.escape(pii_value)
+                pattern = r'\b' + escaped_pii + r'\b'
+                masked_text = re.sub(pattern, pii_info["tag"], masked_text)
 
             para.text = masked_text
 

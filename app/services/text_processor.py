@@ -4,6 +4,7 @@ import base64
 import hashlib
 import pandas as pd
 import re
+from typing import Optional
 from app.services.aes_gcm import encrypt_with_metadata, decrypt_with_metadata
 from app.services.pii_main import extract_all_pii
 from app.resources.dictionaries import NAMES, ORG_NAMES
@@ -15,7 +16,7 @@ def read_text_file(file_path):
             return f.read()
     return ""
 
-def run_text_processing(file_path: str, enabled_pii_categories=None, key_str: str = None):
+def run_text_processing(file_path: str, enabled_pii_categories=None, key_str: Optional[str] = None):
     try:
         ext = os.path.splitext(file_path)[1].lower()
         from app.services.aes_gcm import generate_key as generate_key_aes
@@ -42,6 +43,23 @@ def process_csv_optimized(file_path: str, key, enabled_pii_categories=None):
     all_pii_list = pii_list
     print(f"[INFO] Total found {len(all_pii_list)} PII items")
     
+    # Filter by enabled categories
+    # Only mask if category is in enabled_pii_categories OR is non-selectable (IC, Email, Phone, etc.)
+    non_selectable_categories = ['IC', 'Email', 'DOB', 'Bank Account', 'Passport', 'Phone', 'Credit Card', 'Address', 'Vehicle Registration']
+    
+    filtered_pii_list = []
+    for label, value in all_pii_list:
+        if label in enabled_pii_categories or label in non_selectable_categories:
+            filtered_pii_list.append((label, value))
+            print(f"[FILTER] Masking: {label} = {value}")
+        else:
+            print(f"[FILTER] Skipping (not enabled): {label} = {value}")
+    
+    all_pii_list = filtered_pii_list
+    print(f"[INFO] After filtering: {len(all_pii_list)} PII items to mask")
+    
+    # Tag format: [ENC:{Label}_{8-char-hash}]
+    # Examples: [ENC:NAMES_abcd1234], [ENC:Email_wxyz5678], [ENC:Phone_defg9012]
     pii_mapping = {}
     mapping = []
     
@@ -128,18 +146,10 @@ def process_text_optimized(file_path: str, key, enabled_pii_categories=None):
 
     masked_text = content
     for pii_value, pii_info in sorted_pii_items:
-        parts = re.split(r'(\[ENC:[^\]]+\])', masked_text)
-
-        for i in range(len(parts)):
-            if i % 2 == 0 and not parts[i].startswith('[ENC:'):
-                escaped_pii = re.escape(pii_value)
-                if len(pii_value) == 1 and pii_value.isdigit():
-                    pattern = r'\b' + escaped_pii + r'\b'
-                else:
-                    pattern = escaped_pii
-                parts[i] = re.sub(pattern, pii_info["tag"], parts[i])
-
-        masked_text = ''.join(parts)
+        # Use word boundary regex to replace only complete words
+        escaped_pii = re.escape(pii_value)
+        pattern = r'\b' + escaped_pii + r'\b'
+        masked_text = re.sub(pattern, pii_info["tag"], masked_text)
 
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     output_dir = os.path.dirname(file_path)

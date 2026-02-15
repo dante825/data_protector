@@ -222,12 +222,31 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
 
     # ✅ Malaysia location whitelist (for LOC filtering)
 
+    # Label mapping: map NER/LLM labels to application categories
+    pii_label_mapping = {
+        "PER": "NAMES",
+        "ORG": "ORG_NAMES",
+        "LOC": None,  # Exclude locations
+        "MISC": None,  # Exclude Miscellaneous
+        "RELIGIONS": "ETHNIC",  # Map RELIGIONS to ETHNIC
+        "RACES": "ETHNIC"  # Map RACES to ETHNIC
+    }
+
     # 过滤和处理PII结果
     filtered_pii = []
-    selectable_categories = ['NAMES', 'ORG_NAMES']
+    selectable_categories = ['NAMES', 'ORG_NAMES', 'ETHNIC']
 
     print("[INFO] Processing PII detection results:")
     for label, value in pii_entries:
+        # Map label to application category
+        if label in pii_label_mapping:
+            if pii_label_mapping[label] is None:
+                print(f"[SKIP] Label mapped to None (excluded): {label} -> {value}")
+                continue
+            mapped_label = pii_label_mapping[label]
+            print(f"[MAP] {label} -> {mapped_label}")
+            label = mapped_label
+
         clean_val = value.strip().lower()
         original_val = value.strip()
         # Skipping null values
@@ -251,7 +270,9 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
     # Update keywords
     keywords = list(set(value for _, value in filtered_pii))
     print(f"[INFO] Will finally mask {len(keywords)} keywords")
-    # === Step 4: Load or generate a key ===
+    # Tag format: [ENC:{Label}_{8-char-hash}]
+    # Examples: [ENC:NAMES_abcd1234], [ENC:Email_wxyz5678], [ENC:Phone_defg9012]
+     # === Step 4: Load or generate a key ===
     key = load_or_generate_valid_key(key_path)
     seen = []
     # === Step 5: Traverse the original OCR results and match keywords (support cross-line keywords) ===

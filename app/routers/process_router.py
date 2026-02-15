@@ -38,7 +38,7 @@ async def process_task(task_id: str, request: Request, current_user: User = Depe
 
     # Load PII configuration
     config_path = os.path.join(task_path, "pii_config.json")
-    enabled_pii_categories = ['NAMES', 'ORG_NAMES']  # Default
+    enabled_pii_categories = ['NAMES', 'ETHNIC', 'ORG_NAMES']  # Default
 
     if os.path.exists(config_path):
         try:

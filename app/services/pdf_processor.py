@@ -22,9 +22,9 @@ def run_pdf_processing(pdf_path: str, enabled_pii_categories=None):
     key_file_path = base_output + ".key"  # Use consistent naming with other processors
     json_output_path = base_output + "_masked.json"
 
-    # Default to all selectable categories if none specified
+     # Default to all selectable categories if none specified
     if enabled_pii_categories is None:
-        enabled_pii_categories = ['NAMES', 'ORG_NAMES']
+         enabled_pii_categories = ['NAMES', 'ETHNIC', 'ORG_NAMES']
 
     print(f"[INFO] PDF processing started: {pdf_path}")
     print(f"[INFO] Enabled PII categories: {enabled_pii_categories}")
@@ -54,8 +54,10 @@ def run_pdf_processing(pdf_path: str, enabled_pii_categories=None):
         print("[INFO] Step 3: Synthesizing masked PDF...")
         final_pdf_path = images_to_pdf(image_output_folder, masked_output_pdf)
 
-        # Step 4: Merge all page JSON data
+         # Step 4: Merge all page JSON data
         print("[INFO] Step 4: Merging page JSON data...")
+        # Tag format: [ENC:{Label}_{8-char-hash}]
+         # Examples: [ENC:NAMES_abcd1234], [ENC:Email_wxyz5678], [ENC:Phone_defg9012]
         combined_json_data = []
         base_key_path = os.path.splitext(key_file_path)[0]
 

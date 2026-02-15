@@ -2,11 +2,12 @@ import os
 import json
 import re
 import hashlib
+from typing import Optional
 from app.services.aes_gcm import encrypt_with_metadata, generate_key as generate_key_aes
 from openpyxl import load_workbook
 from app.services.pii_main import extract_all_pii
 
-def mask_xlsx_sensitive_text(xlsx_path: str, key_path: str = None, enabled_pii_categories=None):
+def mask_xlsx_sensitive_text(xlsx_path: str, key_path: Optional[str] = None, enabled_pii_categories=None):
     if key_path is None:
         key_path = xlsx_path.replace(".xlsx", ".key")
 
@@ -27,7 +28,21 @@ def mask_xlsx_sensitive_text(xlsx_path: str, key_path: str = None, enabled_pii_c
                 if isinstance(cell.value, str) and cell.value.strip():
                     full_text += cell.value + " "
 
+    # Tag format: [ENC:{Label}_{8-char-hash}]
+    # Examples: [ENC:NAMES_abcd1234], [ENC:Email_wxyz5678], [ENC:Phone_defg9012]
     all_pii_list = extract_all_pii(full_text, enabled_pii_categories)
+
+    # Filter by enabled categories
+    non_selectable_categories = ['IC', 'Email', 'DOB', 'Bank Account', 'Passport', 'Phone', 'Credit Card', 'Address', 'Vehicle Registration']
+    filtered_pii_list = []
+    for label, value in all_pii_list:
+        if label in enabled_pii_categories or label in non_selectable_categories:
+            filtered_pii_list.append((label, value))
+            print(f"[FILTER] Masking XLSX: {label} = {value}")
+        else:
+            print(f"[FILTER] Skipping XLSX (not enabled): {label} = {value}")
+
+    all_pii_list = filtered_pii_list
     print(f"print all_pii_list: '{all_pii_list}'")
     
     unique_pii = {}
@@ -60,18 +75,11 @@ def mask_xlsx_sensitive_text(xlsx_path: str, key_path: str = None, enabled_pii_c
                     masked_text = cell.value
 
                     for pii_value, pii_info in sorted_pii_items:
-                        parts = re.split(r'(\[ENC:[^\]]+\])', masked_text)
+                        # Use word boundary regex to replace only complete words
+                        escaped_pii = re.escape(pii_value)
+                        pattern = r'\b' + escaped_pii + r'\b'
+                        masked_text = re.sub(pattern, pii_info["tag"], masked_text)
 
-                        for i in range(len(parts)):
-                            if i % 2 == 0 and not parts[i].startswith('[ENC:'):
-                                escaped_pii = re.escape(pii_value)
-                                if len(pii_value) == 1 and pii_value.isdigit():
-                                    pattern = r'\b' + escaped_pii + r'\b'
-                                else:
-                                    pattern = escaped_pii
-                                parts[i] = re.sub(pattern, pii_info["tag"], parts[i])
-
-                        masked_text = ''.join(parts)
                     cell.value = masked_text
 
     output_path = xlsx_path.replace(".xlsx", ".masked.xlsx")
