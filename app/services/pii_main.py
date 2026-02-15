@@ -267,8 +267,8 @@ Text to analyze (chunk {chunk_idx + 1}/{len(text_chunks)}):
                         value = item['value'].strip()
                         confidence = item.get('confidence', 0.8)
 
-                        # Only include high-confidence results
-                        if confidence >= 0.7 and value:
+                        # Lowered confidence threshold from 0.7 to 0.5 for better detection
+                        if confidence >= LLM_CONFIDENCE_THRESHOLD and value:
                             chunk_results.append((category, value))
 
                 all_results.extend(chunk_results)
@@ -380,11 +380,11 @@ Teks untuk dianalisis (ketua {chunk_idx + 1}/{len(text_chunks)}):
                     if isinstance(item, dict) and 'category' in item and 'value' in item:
                         category = item['category']
                         value = item['value'].strip()
-                        confidence = item.get('confidence', 0.8)
-
-                        if confidence >= 0.7 and value:
+                        confidence = item.get('confidence', 0.5)
+                        
+                        if category in enabled_categories and confidence >= LLM_CONFIDENCE_THRESHOLD and value:
                             chunk_results.append((category, value))
-
+                
                 all_results.extend(chunk_results)
                 print(f"[Ollama] Chunk {chunk_idx + 1}: Found {len(chunk_results)} PII items")
             else:
@@ -478,7 +478,7 @@ Text to analyze (chunk {chunk_idx + 1}/{len(text_chunks)}):
                         value = item['value'].strip()
                         confidence = item.get('confidence', 0.5)
                         
-                        if category in enabled_categories and confidence >= 0.7 and value:
+                        if category in enabled_categories and confidence >= LLM_CONFIDENCE_THRESHOLD and value:
                             chunk_results.append((category, value))
                 
                 all_results.extend(chunk_results)
@@ -706,6 +706,10 @@ def combine_pii_results(presidio_results: List[Tuple[str, str]],
 
     print(f"[CONSENSUS] Combined {len(all_results)} detections into {len(final_results)} final results")
     return final_results
+
+# === LLM Aggressive Detection Settings ===
+LLM_CONFIDENCE_THRESHOLD = 0.5  # Lowered from 0.7 to catch more potential PII
+LLM_MIN_TEXT_LENGTH = 100  # Minimum text length to use LLM detection
 
 # === General ignored words (non-sensitive, no encryption required) ===
 IGNORE_WORDS = {
@@ -1044,6 +1048,153 @@ NON_SELECTABLE_PII_CATEGORIES = {
     "Vehicle Registration": "Vehicle registration numbers"
 }
 
+def detect_missed_pii_with_llm(text: str, detected_pii: List[Tuple[str, str]], enabled_categories: Optional[List[str]] = None) -> List[Tuple[str, str]]:
+    """
+    Secondary LLM scan to find PII that was missed by initial detection
+    Uses context-aware prompting to identify subtle/indirect PII
+    
+    Args:
+        text: Original full text
+        detected_pii: PII already detected by initial scan
+        enabled_categories: Categories to check for missed items
+        
+    Returns:
+        List of newly detected PII items
+    """
+    if not text or len(text.strip()) < LLM_MIN_TEXT_LENGTH:
+        print("[LLM-MISSED] Skipping missed detection (text too short or empty)")
+        return []
+    
+    if not gemini_enabled and not ollama_enabled:
+        print("[LLM-MISSED] Skipping missed detection (no LLM available)")
+        return []
+    
+    if not detected_pii:
+        print("[LLM-MISSED] No detected PII to compare against")
+        return []
+    
+    if enabled_categories is None:
+        enabled_categories = list(SELECTABLE_PII_CATEGORIES.keys())
+    
+    # Get detected values for comparison
+    detected_values = {val.lower() for _, val in detected_pii}
+    
+    print(f"[LLM-MISSED] Scanning for missed PII in {len(text)} chars, comparing against {len(detected_values)} detected items")
+    
+    try:
+        # Create chunked text for LLM analysis
+        text_chunks = chunk_text_intelligently(text, max_chunk_size=2500)
+        missed_items = []
+        
+        for chunk_idx, chunk in enumerate(text_chunks):
+            try:
+                # Build prompt for missed PII detection
+                categories_desc = {
+                    "NAMES": "Malaysian personal names including:\n"
+                            "  - English names: First + Last names (Yap En Chong, Alfred Lee)\n"
+                            "  - Chinese names: 2-4 character Chinese characters (王伟, 李娜)\n"
+                            "  - Indian names: Patronymic patterns (Raj Kumar a/l Subramaniam)\n"
+                            "  - Malay names: bin/binti/anak patterns (Ahmad bin Ali, Siti binti Hassan)",
+                    "ACCOUNT": "Bank account numbers (10-16 digits)",
+                    "PHONE": "Malaysian phone numbers (+60123456789, 03-77855409)",
+                    "IC": "Malaysian IC numbers (123456-78-9012)",
+                    "EMAIL": "Email addresses",
+                    "CREDIT_CARD": "Credit card numbers",
+                }
+                
+                enabled_desc = [f"- {cat}: {categories_desc.get(cat, cat)}" for cat in enabled_categories if cat in categories_desc]
+                categories_text = "\n".join(enabled_desc)
+                
+                detected_text = "\n".join([f"- {val}" for val in list(detected_values)[:10]])
+                if len(detected_values) > 10:
+                    detected_text += f"\n... and {len(detected_values) - 10} more"
+                
+                prompt = f"""You are a PII detection specialist reviewing a document for missed sensitive information.
+
+ORIGINAL TEXT (chunk {chunk_idx + 1}/{len(text_chunks)}):
+{chunk}
+
+PREVIOUSLY DETECTED PII (DO NOT DETECT THESE AGAIN):
+{detected_text}
+
+YOUR TASK:
+Scan the text above for ANY PII that matches these categories but was NOT in the detected list:
+{categories_text}
+
+CRITICAL INSTRUCTIONS:
+1. Find names that weren't caught:
+   - Full names with multiple parts
+   - Names with titles (Dr., Mr., Ms.)
+   - Names with apostrophes or hyphens
+   - Names followed by identifying info (IC, phone, account)
+   - Chinese names in any context (even embedded in other text)
+   - Names that are split across lines or have unusual spacing
+
+2. Find contact info:
+   - Phone numbers with any separators (+, -, spaces)
+   - Email addresses with subaddresses (user+tag@gmail.com)
+   - Account numbers embedded in sentences
+
+3. Find IC numbers:
+   - Any 12-digit sequences that could be IC numbers
+   - IC numbers with unconventional separators
+
+4. DO NOT return general information, amounts, dates (unless birth dates), or generic terms
+
+Return ONLY a JSON array of NEW items that should be masked:
+[
+  {{"category": "NAMES"|"ACCOUNT"|"PHONE"|"IC"|"EMAIL"|"CREDIT_CARD", "value": "DETECTED VALUE", "confidence": 0.8, "reason": "why this is PII"}}
+]
+
+If no new PII found, return an empty array: []"""
+                
+                if gemini_enabled and gemini_client:
+                    system_prompt = "You are a PII detection specialist. Return only valid JSON with missed PII."
+                    response_text = gemini_client.generate_json(system_prompt, prompt)
+                elif ollama_enabled:
+                    system_prompt = "Anda adalah pakar pengesanan PII. Kembalikan JSON yang sah sahaja."
+                    response_text = generate_json(system_prompt, prompt)
+                else:
+                    response_text = "[]"
+                
+                # Parse JSON response
+                json_start = response_text.find('[')
+                json_end = response_text.rfind(']') + 1
+                
+                if json_start >= 0 and json_end > json_start:
+                    json_text = response_text[json_start:json_end]
+                    try:
+                        missed_data = json.loads(json_text)
+                        
+                        for item in missed_data:
+                            if isinstance(item, dict) and 'category' in item and 'value' in item:
+                                category = item['category']
+                                value = item['value'].strip()
+                                confidence = item.get('confidence', 0.5)
+                                reason = item.get('reason', 'LLM detected')
+                                
+                                # Check if this was already detected
+                                if value.lower() not in detected_values:
+                                    # Validate confidence
+                                    if confidence >= LLM_CONFIDENCE_THRESHOLD and value:
+                                        missed_items.append((category, value))
+                                        print(f"[LLM-MISSED] Found missed PII: {category} = '{value}' (confidence: {confidence})")
+                                    
+                    except json.JSONDecodeError:
+                        pass
+                        
+            except Exception as e:
+                print(f"[LLM-MISSED] Error in chunk {chunk_idx + 1}: {e}")
+                continue
+        
+        print(f"[LLM-MISSED] Total missed PII found: {len(missed_items)}")
+        return missed_items
+        
+    except Exception as e:
+        print(f"[LLM-MISSED] Failed to scan for missed PII: {e}")
+        return []
+
+
 # ✅ Main function: Extract all PII (with selective filtering + Gemini enhancement)
 def extract_all_pii(text, enabled_categories=None):
     """
@@ -1218,27 +1369,27 @@ def extract_all_pii(text, enabled_categories=None):
 
     print(f"[PRESIDIO/REGEX] Found {len(presidio_regex_results)} entities")
 
-    # --- 4. Gemini Enhanced Detection ---
-    if gemini_enabled and len(text.strip()) >= 20:  # Use LLM for meaningful text
-        print("[INFO] Starting Gemini enhanced detection...")
+    # --- 4. Gemini Enhanced Detection (MANDATORY for text >= LLM_MIN_TEXT_LENGTH) ---
+    if gemini_enabled and len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
+        print("[INFO] Starting Gemini enhanced detection (mandatory mode)...")
         gemini_results = extract_pii_with_gemini(text, enabled_categories)
         print(f"[Gemini] Found {len(gemini_results)} entities")
     else:
         if not gemini_enabled:
             print("[INFO] Gemini detection skipped (not enabled)")
         else:
-            print(f"[INFO] Gemini detection skipped (text too short: {len(text.strip())} chars < 20)")
+            print(f"[INFO] Gemini detection skipped (text too short: {len(text.strip())} chars < {LLM_MIN_TEXT_LENGTH})")
 
-    # --- 5. Ollama Enhanced Detection (Malaysian-focused) ---
-    if ollama_enabled and len(text.strip()) >= 20:
-        print("[INFO] Starting Ollama enhanced entity extraction with boundary detection...")
+    # --- 5. Ollama Enhanced Detection (MANDATORY for text >= LLM_MIN_TEXT_LENGTH) ---
+    if ollama_enabled and len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
+        print("[INFO] Starting Ollama enhanced entity extraction with boundary detection (mandatory mode)...")
         ollama_results = extract_entities_with_ollama(text, enabled_categories)
         print(f"[Ollama] Found {len(ollama_results)} entities")
     else:
         if not ollama_enabled:
             print("[INFO] Ollama detection skipped (not enabled)")
         else:
-            print(f"[INFO] Ollama detection skipped (text too short: {len(text.strip())} chars < 20)")
+            print(f"[INFO] Ollama detection skipped (text too short: {len(text.strip())} chars < {LLM_MIN_TEXT_LENGTH})")
 
     # --- 6. Result merging and consensus mechanism (Stage 1 Complete) ---
     print("[INFO] Stage 1: Apply consensus mechanism to merge test results...")
@@ -1283,26 +1434,33 @@ def extract_all_pii(text, enabled_categories=None):
 
     print(f"[DEDUP] After deduplication: {len(deduped_results)} PII candidates")
     stage1_filtered = deduped_results
-
-    # --- 7. Stage 2: Gemini Contextual Validation (ADDITIVE, not filtering) ---
-    if len(stage1_filtered) > 0 and len(text.strip()) >= 100:  # Only for substantial documents
-        print("[INFO] Stage 2: Starting Gemini contextual validation...")
-        gemini_validated = validate_pii_with_gemini_context(text, stage1_filtered, enabled_categories)
-
-        # Calculate filtering statistics for logging
-        filtered_count = len(stage1_filtered) - len(gemini_validated)
-        if filtered_count > 0:
-            print(f"[STAGE-2] Gemini validation: {len(gemini_validated)}/{len(stage1_filtered)} items passed validation")
+    
+    # --- 7. Stage 2: LLM Missed Items Detection (MANDATORY for text >= LLM_MIN_TEXT_LENGTH) ---
+    if len(stage1_filtered) > 0 and len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
+        print(f"[INFO] Stage 2: Detecting missed PII items with LLM ({len(stage1_filtered)} already found)...")
+        missed_items = detect_missed_pii_with_llm(text, stage1_filtered, enabled_categories)
+        
+        if missed_items:
+            print(f"[STAGE-2] LLM missed detection: Found {len(missed_items)} additional PII items")
+            # Merge missed items with stage1 results
+            stage1_filtered.extend(missed_items)
+            print(f"[STAGE-2] Total PII items after missed detection: {len(stage1_filtered)}")
         else:
-            print(f"[STAGE-2] Gemini validation: All candidates passed validation")
-
-        # IMPORTANT: Use ALL Stage 1 results, not just Gemini-validated ones
-        # This ensures comprehensive PII protection while benefiting from Gemini's accuracy insights
-        final_results = stage1_filtered
-        print(f"[STAGE-2] Retaining all Stage 1 detection results to ensure comprehensive protection")
+            print("[STAGE-2] No missed PII items detected")
     else:
-        print("[INFO] Stage 2: Skipping contextual validation (document too short or no candidates)")
-        final_results = stage1_filtered
+        print("[INFO] Stage 2: Skipping missed detection (no candidates or text too short)")
 
+    # --- 8. Final validation and deduplication ---
+    print("[INFO] Final validation and deduplication of all PII items...")
+    seen = set()
+    final_results = []
+    for label, value in stage1_filtered:
+        clean_val = value.strip().lower()
+        if not clean_val or clean_val in IGNORE_WORDS:
+            continue
+        if clean_val not in seen:
+            seen.add(clean_val)
+            final_results.append((label, value.strip()))
+    
     print(f"[FINAL] Finally detected {len(final_results)} PII items")
     return final_results

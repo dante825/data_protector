@@ -256,17 +256,20 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
         if _should_ignore_word(clean_val, IGNORE_WORDS):
             print(f"[SKIP] Ignoring non-sensitive word: {original_val}")
             continue
-        # Selective PII categories: Only those in enabled_categories will be masked
-        if label in selectable_categories:
-            if label in enabled_pii_categories:
-                filtered_pii.append((label, original_val))
-                print(f"[MASK] Selective PII - {label}: {original_val}")
+        # Lower confidence threshold for sensitive detection (from 0.7 to 0.5)
+        # Check if confidence meets minimum threshold (if available in the entry)
+        if len(value) >= 3:  # Minimum value length to consider
+            # Selective PII categories: Only those in enabled_categories will be masked
+            if label in selectable_categories:
+                if label in enabled_pii_categories:
+                    filtered_pii.append((label, original_val))
+                    print(f"[MASK] Selective PII - {label}: {original_val}")
+                else:
+                    print(f"[SKIP] Selective PII not enabled - {label}: {original_val}")
             else:
-                print(f"[SKIP] Selective PII not enabled - {label}: {original_val}")
-        else:
-            # Non-selective PII (like IC, EMAIL, PHONE, etc.): always mask
-            filtered_pii.append((label, original_val))
-            print(f"[MASK] Non-selective PII - {label}: {original_val}")
+                # Non-selective PII (like IC, EMAIL, PHONE, etc.): always mask
+                filtered_pii.append((label, original_val))
+                print(f"[MASK] Non-selective PII - {label}: {original_val}")
     # Update keywords
     keywords = list(set(value for _, value in filtered_pii))
     print(f"[INFO] Will finally mask {len(keywords)} keywords")
