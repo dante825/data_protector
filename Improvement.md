@@ -41,7 +41,6 @@ Is Admin: Yes
 - **LLM Cost Optimization**: Add token usage tracking, rate limiting, and fallback to cheaper models
 - **Model Versioning**: Currently hardcoded model names. Add version control for reproducibility
 - **Feedback Loop**: Missing implementation of "auto-learning from LLM feedback" mentioned in README
-- **Gemini Validation**: Stage 2 validation currently doesn't filter results - either implement or remove
 
 ## 6. User Interface (Medium Priority)
 - **Upload Progress**: No progress indication for long-running processes
@@ -65,7 +64,7 @@ Is Admin: Yes
 - **Python Version**: 3.11.6 is restrictive. Support 3.11-3.12
 
 ## 10. Feature Gaps (Low Priority)
-- **DeepSeek Implementation**: Configured but duplicate code blocks in `pii_main.py` (line 43-77)
+- **Word Document Processing**: DOCX processor exists but limited testing
 - **Word Document Processing**: DOCX processor exists but limited testing
 - **Excel Processing**: XLSX processor exists but limited testing
 - **Image Formats**: Only PDF/JPG/PNG supported - add TIFF, BMP support
@@ -87,7 +86,7 @@ Is Admin: Yes
 - ✅ Add structured logging with correlation IDs
 - ✅ Create Dockerfile for easy deployment
 - ✅ Add unit test boilerplate with `pytest`
-- ✅ Fix duplicate DeepSeek code blocks in `pii_main.py`
+- ✅ Add basic health check endpoint (`/health`)
 
 ---
 

@@ -124,21 +124,11 @@ async def process_task(task_id: str, request: Request, current_user: User = Depe
                             "total_pii_masked": file_pii_masked,
                             "selectable_pii_found": {},
                             "non_selectable_pii_found": {},
-                            "detection_methods": ["NER", "Regex", "Dictionary"],
+                            "detection_methods": ["Ollama"],
                             "confidence_scores": [],
                             "file_type": ext,
                             "processing_successful": True
                         }
-
-                         # Add detection methods (Ollama or Gemini)
-                    try:
-                         from app.services.pii_main import gemini_enabled, ollama_enabled
-                         if gemini_enabled:
-                             pii_found_data["detection_methods"].append("Gemini")
-                         elif ollama_enabled:
-                             pii_found_data["detection_methods"].append("Ollama")
-                    except:
-                        pass
 
                     with AuditService() as audit:
                         file_op_id = audit.log_file_operation(

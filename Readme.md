@@ -15,7 +15,7 @@ Our solution — Project Protector — is an AI-powered PII processing pipeline 
 
 	- Domain Dictionary Filter for organization-specific terms (e.g., “Loan ID”, “Medical Record #”).
 
-	- Gemini API for fuzzy candidate mining and novel sensitive pattern discovery (e.g., obfuscated names, nicknames).
+	- Ollama (local LLM) for fuzzy candidate mining and novel sensitive pattern discovery (e.g., obfuscated names, nicknames).
 
 2. Presidio Integration:
 
@@ -50,7 +50,7 @@ Our solution — Project Protector — is an AI-powered PII processing pipeline 
 
 - 🔄 Masked image restoration (optional)
 
-- 🧠 Auto-learning mechanism from LLM feedback (Gemini)
+- 🧠 Auto-learning mechanism from LLM feedback (Ollama)
 
 ### 🛠️ Tech Stack Used
 
@@ -61,7 +61,7 @@ Our solution — Project Protector — is an AI-powered PII processing pipeline 
 | **Data Base**        | `SQLAlchemy`, `SQLite`                                              | Data storage and querying for audit logs     	    |
 | **OCR**              | `EasyOCR`, `pytesseract`, `pdf2image`                               | Optical Character Recognition from images/PDFs       |
 | **PII / NER**        | `spacy`, `presidio`, `transformers`                                 | Named Entity Recognition and PII detection           |
-| **LLM Integration**  | `google-generativeai`                                               | Gemini model integration                             |
+| **LLM Integration**  | `ollama`                                                            | Local LLM integration via Ollama                     |
 | **NLP Support**      | `nltk`, `sentencepiece`, `regex`                                    | Language preprocessing and tokenization              |
 | **Computer Vision**  | `opencv`, `imutils`, `deskew`                                       | Image preprocessing, alignment                       |
 | **Data Handling**    | `pandas`, `numpy`, `scikit-image`                                   | Tabular & image data handling                        |
@@ -84,20 +84,6 @@ python -m venv venv
 .\venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-</pre>
-
-### Configure Gemini API key
-
-Set one of these environment variables before running the server:
-
-- GOOGLE_API_KEY (recommended)
-- GEMINI_API_KEY
-
-On Windows PowerShell:
-
-<pre>
-$env:GOOGLE_API_KEY = "your_api_key_here"
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 </pre>
 

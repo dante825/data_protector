@@ -29,13 +29,35 @@ def mask_docx_sensitive_text(docx_path: str, key_path: Optional[str] = None, ena
 
     # Filter by enabled categories
     non_selectable_categories = ['IC', 'Email', 'DOB', 'Bank Account', 'Passport', 'Phone', 'Credit Card', 'Address', 'Vehicle Registration']
+    
+    # Map Ollama category names to expected format
+    category_mapping = {
+        'ACCOUNT': 'Bank Account',
+        'EMAIL': 'Email',
+        'PHONE': 'Phone',
+        'CREDIT_CARD': 'Credit Card',
+        'NAMES': 'NAMES',
+        'ORG_NAMES': 'ORG_NAMES',
+        'ETHNIC': 'ETHNIC',
+        'DOB': 'DOB',
+        'PASSPORT': 'Passport',
+        'ADDRESS': 'Address',
+        'VEHICLE_REGISTRATION': 'Vehicle Registration',
+        # Legacy category mappings
+        'RACES': 'ETHNIC',
+        'RELIGIONS': 'ETHNIC',
+        'LOCATIONS': 'Address',
+        'STATUS': 'NAMES'
+    }
+    
     filtered_pii_list = []
     for label, value in all_pii_list:
-        if label in enabled_pii_categories or label in non_selectable_categories:
+        mapped_label = category_mapping.get(label, label)
+        if mapped_label in enabled_pii_categories or label in non_selectable_categories or mapped_label in non_selectable_categories:
             filtered_pii_list.append((label, value))
             print(f"[FILTER] Masking DOCX: {label} = {value}")
         else:
-            print(f"[FILTER] Skipping DOCX (not enabled): {label} = {value}")
+            print(f"[FILTER] Skipping DOCX (not enabled): {label} (mapped: {mapped_label})")
 
     all_pii_list = filtered_pii_list
 

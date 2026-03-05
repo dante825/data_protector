@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from app.auth.models import User
@@ -7,7 +8,6 @@ from app.database.audit_database import init_audit_database
 from app.database.auth_database import init_auth_database
 from app.dependencies.auth_deps import get_current_user
 from app.auth.jwt_handler import verify_token
-import os
 import logging
 
 # Configure logging
@@ -119,13 +119,6 @@ try:
     print("✅ Human Review router loaded successfully")
 except Exception as e:
     print(f"❌ Failed to load Human Review router: {e}")
-
-# Initialize DeepSeek client if enabled (for enhanced PII detection)
-try:
-    from app.services.pii_main import load_deepseek_client
-    load_deepseek_client()
-except Exception as e:
-    logger.warning(f"DeepSeek initialization failed: {e}")
 
 # Create static directories if they don't exist
 os.makedirs("static", exist_ok=True)

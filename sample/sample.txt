@@ -2,5 +2,10 @@ In Kuala Lumpur, Lim Wei Jian (林伟健), a fictional Malaysian Chinese male bo
  for work communications. His fictional NRIC is 920312-10-8888 (FAKE), and he is described as working as a logistics analyst at a trading company in Bangsar. Lim’s emergency contact is his fictional sister, Lim Mei Ling, reachable at 017-555-7712.
 
 Meanwhile in Shah Alam, Nur Aisyah binti Ahmad, a fictional Malaysian Malay female born on 7 July 1988, lives at No. 45, Jalan Kristal 7/70, Seksyen 7, 40000 Shah Alam, Selangor. Her fake contact number is 019-555-6043, and her email is aisyah.ahmad88@example.com
-. She holds a fictional NRIC 880707-08-4444 (FAKE) and is portrayed as a human resources executive. In Penang, a fictional Malaysian Indian male, Arun Kumar a/l Subramaniam, born 21 November 1990, resides at No. 9, Lorong Sungai Dua 3, 11700 Gelugor, Pulau Pinang, with a fake phone number 016-555-9901 and email arun.kumar90@example.com
+. She holds a NRIC 880707-08-4444 and is portrayed as a human resources executive. In Penang, a fictional Malaysian Indian male, Arun Kumar a/l Subramaniam, born 21 November 1990, resides at No. 9, Lorong Sungai Dua 3, 11700 Gelugor, Pulau Pinang, with a fake phone number 016-555-9901 and email arun.kumar90@example.com
 , completing the multicultural snapshot.
+
+Chong En Ye is a quantum computing researcher finding a breakthrough in the future of computing in the top secret research facility of Baryon Corp.
+Lee Shing Chee is a lifelong Buddhist, he is a vegetarian without ever tasting meat, he is in the management team of Wu Tan Shan.
+Nicholas Voon is an atheist, challenging God's divine will in the legal department of Umbrella Inc. 
+

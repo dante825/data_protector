@@ -7,7 +7,6 @@ import re
 from typing import Optional
 from app.services.aes_gcm import encrypt_with_metadata, decrypt_with_metadata
 from app.services.pii_main import extract_all_pii
-from app.resources.dictionaries import NAMES, ORG_NAMES
 
 def read_text_file(file_path):
     ext = os.path.splitext(file_path)[1].lower()
@@ -47,13 +46,35 @@ def process_csv_optimized(file_path: str, key, enabled_pii_categories=None):
     # Only mask if category is in enabled_pii_categories OR is non-selectable (IC, Email, Phone, etc.)
     non_selectable_categories = ['IC', 'Email', 'DOB', 'Bank Account', 'Passport', 'Phone', 'Credit Card', 'Address', 'Vehicle Registration']
     
+    # Map Ollama category names to expected format
+    category_mapping = {
+        'ACCOUNT': 'Bank Account',
+        'EMAIL': 'Email',
+        'PHONE': 'Phone',
+        'CREDIT_CARD': 'Credit Card',
+        'NAMES': 'NAMES',
+        'ORG_NAMES': 'ORG_NAMES',
+        'ETHNIC': 'ETHNIC',
+        'DOB': 'DOB',
+        'PASSPORT': 'Passport',
+        'ADDRESS': 'Address',
+        'VEHICLE_REGISTRATION': 'Vehicle Registration',
+        # Legacy category mappings (old frontend configs)
+        'RACES': 'ETHNIC',
+        'RELIGIONS': 'ETHNIC',
+        'LOCATIONS': 'Address',
+        'STATUS': 'NAMES'
+    }
+    
     filtered_pii_list = []
     for label, value in all_pii_list:
-        if label in enabled_pii_categories or label in non_selectable_categories:
+        mapped_label = category_mapping.get(label, label)
+        if mapped_label in enabled_pii_categories or label in non_selectable_categories or mapped_label in non_selectable_categories:
             filtered_pii_list.append((label, value))
             print(f"[FILTER] Masking: {label} = {value}")
         else:
-            print(f"[FILTER] Skipping (not enabled): {label} = {value}")
+            # Debug: show what's being skipped and why
+            print(f"[FILTER] Skipping (not enabled): {label} (mapped: {mapped_label}) - enabled: {enabled_pii_categories}")
     
     all_pii_list = filtered_pii_list
     print(f"[INFO] After filtering: {len(all_pii_list)} PII items to mask")

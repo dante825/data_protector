@@ -67,7 +67,8 @@ def preload_model():
             if client:
                 print(f"[INFO] Pre-loading Ollama model: {OLLAMA_MODEL}")
                 # Create a minimal request to load the model
-                client.generate(model=OLLAMA_MODEL, prompt="x", options={"temperature": 0})
+                prompt = "x /no_think" if "qwen3" in OLLAMA_MODEL.lower() else "x"
+                client.generate(model=OLLAMA_MODEL, prompt=prompt, options={"temperature": 0})
                 _model_loaded = True
                 print(f"[INFO] Ollama model pre-loaded successfully")
         except Exception as e:
@@ -104,9 +105,14 @@ def generate_json(system_prompt: str, user_prompt: str, use_json_mode: bool = Tr
         timeout = OLLAMA_TIMEOUT_SUBSEQUENT  # Hot model
     
     # Prepare messages
+    # Append /no_think for qwen3 models to disable slow thinking mode
+    user_content = user_prompt.strip()
+    if "qwen3" in OLLAMA_MODEL.lower():
+        user_content += " /no_think"
+    
     messages = [
         {"role": "system", "content": system_prompt.strip()},
-        {"role": "user", "content": user_prompt.strip()}
+        {"role": "user", "content": user_content}
     ]
     
     # Prepare options
@@ -176,27 +182,3 @@ def unload_model():
     
     _model_loaded = False
     _ollama_client = None
-
-
-def generate_json(system_prompt: str, user_prompt: str) -> str:
-    """Generate a JSON response using Ollama chat API."""
-    client = get_client()
-    if not client:
-        return ""
-    
-    try:
-        response = client.chat(
-            model=OLLAMA_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt.strip()},
-                {"role": "user", "content": user_prompt.strip()}
-            ],
-            options={
-                "temperature": OLLAMA_TEMPERATURE,
-                "num_predict": OLLAMA_MAX_TOKENS
-            }
-        )
-        return response.message.content.strip()
-    except Exception as e:
-        print(f"[WARN] Ollama generate_json failed: {e}")
-        return ""

@@ -9,8 +9,7 @@ import os
 import sys
 import base64
 
-from app.services.pii_main import extract_all_pii, extract_from_dictionaries
-from app.resources.dictionaries import NAMES, ORG_NAMES
+from app.services.pii_main import extract_all_pii
 import re
 
 def _should_ignore_word(text, ignore_words):
@@ -229,7 +228,19 @@ def mask_sensitive_text(image_path, key_path, output_json_path=None, output_imag
         "LOC": None,  # Exclude locations
         "MISC": None,  # Exclude Miscellaneous
         "RELIGIONS": "ETHNIC",  # Map RELIGIONS to ETHNIC
-        "RACES": "ETHNIC"  # Map RACES to ETHNIC
+        "RACES": "ETHNIC",  # Map RACES to ETHNIC
+        # Ollama category name mappings
+        "ACCOUNT": "Bank Account",
+        "EMAIL": "Email",
+        "PHONE": "Phone",
+        "CREDIT_CARD": "Credit Card",
+        "NAMES": "NAMES",
+        "ORG_NAMES": "ORG_NAMES",
+        "ETHNIC": "ETHNIC",
+        "DOB": "DOB",
+        "PASSPORT": "Passport",
+        "ADDRESS": "Address",
+        "VEHICLE_REGISTRATION": "Vehicle Registration"
     }
 
     # 过滤和处理PII结果
