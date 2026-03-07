@@ -5,6 +5,21 @@ from typing import List, Tuple, Optional
 
 from app.config.ollama_config import OLLAMA_ENABLED
 from app.services.ollama_client import generate_json
+
+# Try to import Presidio
+presidio_detector = None
+PRESIDIO_ENABLED = False
+try:
+    from app.services.presidio_detector import (
+        extract_pii_with_presidio,
+        load_presidio,
+    )
+    presidio_detector = extract_pii_with_presidio
+    PRESIDIO_ENABLED = True
+    print("✅ Presidio integrated into PII detection pipeline")
+except ImportError as e:
+    print(f"[INFO] Presidio not available: {e}")
+
 ollama_enabled = OLLAMA_ENABLED
 ollama_client = None
 
@@ -515,7 +530,10 @@ If no new PII found, return an empty array: []"""
 # ✅ Main function: Extract all PII (Ollama-only detection)
 def extract_all_pii(text, enabled_categories=None):
     """
-    Extract PII using Ollama LLM as the sole detection method.
+    Extract PII using hybrid approach:
+    1. Presidio (fast NER-based detection)
+    2. Regex fallback (for critical structured PII)
+    3. Ollama LLM (for complex/ambiguous cases)
 
     Args:
         text: Text to analyze
@@ -532,36 +550,55 @@ def extract_all_pii(text, enabled_categories=None):
         load_ollama_client()
 
     print(f"[INFO] PII detection started - Enabled categories: {enabled_categories}")
-    print(f"[INFO] Detection method: Ollama LLM only")
+    print(f"[INFO] Detection method: Presidio + Regex + LLM fallback")
 
-    # --- 1. Broad PII detection with Ollama (IC, phone, email, names, accounts, etc.) ---
-    ollama_broad_results = []
-    if len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
-        print("[INFO] Starting Ollama broad PII detection...")
-        ollama_broad_results = extract_pii_with_ollama(text, enabled_categories)
-        print(f"[Ollama-BROAD] Found {len(ollama_broad_results)} PII items")
+    all_results = []
+
+    # --- 1. Presidio Primary Detection (fast, NER-based) ---
+    if PRESIDIO_ENABLED and presidio_detector and len(text.strip()) >= 20:
+        print("[INFO] Starting Presidio primary PII detection...")
+        try:
+            presidio_results = presidio_detector(text, enabled_categories)
+            if presidio_results:
+                all_results.extend(presidio_results)
+                print(f"[Presidio] Found {len(presidio_results)} PII items")
+        except Exception as e:
+            print(f"[WARN] Presidio detection failed: {e}")
+            print("[INFO] Falling back to other methods...")
     else:
-        print(f"[INFO] Ollama broad detection skipped (text too short: {len(text.strip())} chars < {LLM_MIN_TEXT_LENGTH})")
+        print(f"[INFO] Presidio {'disabled' if not PRESIDIO_ENABLED else 'skipped (text too short)'}")
 
-    # --- 2. Focused entity extraction for NAMES/ORG_NAMES ---
-    entity_categories = [c for c in enabled_categories if c in ("NAMES", "ORG_NAMES")]
-    ollama_entity_results = []
-    if entity_categories and len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
-        print("[INFO] Starting Ollama entity extraction with boundary detection...")
-        ollama_entity_results = extract_entities_with_ollama(text, entity_categories)
-        print(f"[Ollama-ENTITIES] Found {len(ollama_entity_results)} entities")
-
-    # --- 3. Merge all Ollama results ---
-    all_results = ollama_broad_results + ollama_entity_results
-    print(f"[MERGE] Total raw results: {len(all_results)}")
-    
-    # --- 3.5. Regex fallback for critical PII types ---
+    # --- 2. Regex fallback for critical PII types ---
     if len(text.strip()) >= 20:
         print("[INFO] Running regex fallback for critical PII types...")
         regex_results = extract_pii_with_regex(text)
         if regex_results:
             all_results.extend(regex_results)
             print(f"[REGEX] Added {len(regex_results)} PII items from regex fallback")
+
+    print(f"[MERGE-PRESIDIO-REGEX] Total after Presidio+Regex: {len(all_results)}")
+
+    # --- 3. LLM Fallback: If Presidio found nothing, use LLM for names/orgs ---
+    if len(all_results) == 0 and ollama_enabled and len(text.strip()) >= LLM_MIN_TEXT_LENGTH:
+        print("[INFO] No PII found with Presidio+Regex. Using LLM as fallback...")
+        
+        # Broad detection
+        ollama_broad_results = extract_pii_with_ollama(text, enabled_categories)
+        if ollama_broad_results:
+            all_results.extend(ollama_broad_results)
+            print(f"[Ollama-FALLBACK] Found {len(ollama_broad_results)} PII items")
+        
+        # Entity extraction for names/orgs
+        entity_categories = [c for c in enabled_categories if c in ("NAMES", "ORG_NAMES")]
+        if entity_categories:
+            ollama_entity_results = extract_entities_with_ollama(text, entity_categories)
+            if ollama_entity_results:
+                all_results.extend(ollama_entity_results)
+                print(f"[Ollama-ENTITIES-FALLBACK] Found {len(ollama_entity_results)} entities")
+    elif not ollama_enabled:
+        print("[INFO] Ollama disabled - using Presidio+Regex only")
+    elif len(all_results) > 0:
+        print(f"[INFO] Skipping LLM fallback (Presidio+Regex found {len(all_results)} items)")
 
     # --- 4. Deduplication + Filtering Non-sensitive Words ---
     seen = set()
