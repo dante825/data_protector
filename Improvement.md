@@ -4,8 +4,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ss -tulpn | grep 127.0.0.1
 
 Username: admin
-Password: Zu9_KdHzS;sr
-Password: Kc8[2rPyW7_t
+Password: Admin@1234
 Email: admin@Protector.local
 Full Name: System Administrator
 Is Active: Yes
