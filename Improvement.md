@@ -1,5 +1,5 @@
 source .venv/bin/activate
-ollama launch opencode --model qwen3-coder-next
+ollama launch opencode --model qwen3.5:9b
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ss -tulpn | grep 127.0.0.1
 
