@@ -1,17 +1,17 @@
 /* Project Protector - Banking Style CSS */
 
 :root {
-    /* Banking Color Palette */
-    --primary-blue: #003366;
-    --secondary-blue: #0066cc;
-    --accent-gold: #d4af37;
-    --success-green: #28a745;
-    --warning-orange: #fd7e14;
-    --danger-red: #dc3545;
-    --light-gray: #f8f9fa;
-    --medium-gray: #6c757d;
-    --dark-gray: #343a40;
-    --white: #ffffff;
+    /* Dark/Slate Theme Color Palette */
+    --primary-blue: #1e293b;
+    --secondary-blue: #334155;
+    --accent-gold: #06b6d4;
+    --success-green: #22c55e;
+    --warning-orange: #f59e0b;
+    --danger-red: #ef4444;
+    --light-gray: #0f172a;
+    --medium-gray: #94a3b8;
+    --dark-gray: #e2e8f0;
+    --white: #f8fafc;
     
     /* Typography */
     --font-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -46,7 +46,7 @@
 
 body {
     font-family: var(--font-primary);
-    background: linear-gradient(135deg, var(--light-gray) 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, var(--light-gray) 0%, #1e293b 100%);
     color: var(--dark-gray);
     line-height: 1.6;
     min-height: 100vh;
@@ -116,12 +116,12 @@ body {
 
 /* Card Components */
 .card {
-    background: var(--white);
+    background: #1e293b;
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow-md);
     padding: var(--spacing-xxl);
     margin-bottom: var(--spacing-xl);
-    border: 1px solid rgba(0, 51, 102, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
     overflow: hidden;
 }
@@ -547,8 +547,8 @@ body {
     align-items: flex-start;
     gap: var(--spacing-sm);
     padding: var(--spacing-md);
-    background: var(--white);
-    border: 2px solid #e9ecef;
+    background: #1e293b;
+    border: 2px solid #334155;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     transition: all 0.3s ease;
@@ -571,7 +571,7 @@ body {
     height: 20px;
     border: 2px solid var(--medium-gray);
     border-radius: var(--border-radius-sm);
-    background: var(--white);
+    background: #1e293b;
     position: relative;
     flex-shrink: 0;
     transition: all 0.3s ease;
