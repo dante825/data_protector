@@ -73,59 +73,22 @@
             <!-- PII Selection Section -->
             <div class="form-group" id="pii-selection-section" style="display: none;">
                 <label class="form-label">
-                    <i class="fas fa-shield-alt"></i> Select PII Types to Mask
+                    <i class="fas fa-shield-alt"></i> PII Types to be Masked
                 </label>
                 <div style="background: var(--light-gray); padding: var(--spacing-lg); border-radius: var(--border-radius-md); border-left: 4px solid var(--secondary-blue);">
                     <p style="color: var(--medium-gray); margin-bottom: var(--spacing-lg); font-size: 0.9rem;">
                         <i class="fas fa-info-circle"></i>
-                        Choose which types of personally identifiable information to mask.
-                        <strong>Sensitive data (IC numbers, credit cards, emails, etc.) will always be masked for security.</strong>
+                        The following types of personally identifiable information will be masked in your uploaded files:
                     </p>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-md);">
-                        <label class="pii-checkbox-label">
-                            <input type="checkbox" class="pii-checkbox" value="NAMES" checked>
-                            <span class="pii-checkbox-custom"></span>
-                            <div class="pii-checkbox-content">
-                                <strong>Personal Names</strong>
-                                <small>Names and personal identities</small>
-                            </div>
-                        </label>
-
-                         <label class="pii-checkbox-label">
-                             <input type="checkbox" class="pii-checkbox" value="ETHNIC" checked>
-                             <span class="pii-checkbox-custom"></span>
-                             <div class="pii-checkbox-content">
-                                 <strong>Ethnic Information</strong>
-                                 <small>Racial and ethnic data (LLM detection only)</small>
-                             </div>
-                         </label>
-
-                        <label class="pii-checkbox-label">
-                            <input type="checkbox" class="pii-checkbox" value="ORG_NAMES" checked>
-                            <span class="pii-checkbox-custom"></span>
-                            <div class="pii-checkbox-content">
-                                <strong>Organization Names</strong>
-                                <small>Company and organization names</small>
-                            </div>
-                        </label>
-
-                        <label class="pii-checkbox-label">
-                        <label class="pii-checkbox-label">
-
-                        <label class="pii-checkbox-label">
-                    </div>
+                    <ul style="color: var(--dark-gray); font-size: 0.95rem; margin-bottom: var(--spacing-lg); padding-left: 20px;">
+                        <li style="margin-bottom: var(--spacing-sm);"><strong>Personal Names</strong> - Names and personal identities</li>
+                        <li style="margin-bottom: var(--spacing-sm);"><strong>Ethnic Information</strong> - Racial and ethnic data (LLM detection only)</li>
+                        <li style="margin-bottom: var(--spacing-sm);"><strong>Organization Names</strong> - Company and organization names</li>
+                    </ul>
 
                     <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid #dee2e6;">
-                        <div style="display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
-                            <button type="button" class="btn-link" id="select-all-pii">
-                                <i class="fas fa-check-square"></i> Select All
-                            </button>
-                            <button type="button" class="btn-link" id="deselect-all-pii">
-                                <i class="fas fa-square"></i> Deselect All
-                            </button>
-                        </div>
-                        <p style="color: var(--medium-gray); font-size: 0.8rem; margin-top: var(--spacing-sm);">
+                        <p style="color: var(--medium-gray); font-size: 0.8rem;">
                             <i class="fas fa-lock"></i>
                             <strong>Always masked:</strong> IC numbers, phone numbers, email addresses, credit cards, bank accounts, passports, and other sensitive identifiers.
                         </p>
@@ -137,7 +100,7 @@
             <div class="text-center mt-lg">
                 <button class="btn btn-primary" id="submit-btn" disabled>
                     <i class="fas fa-paper-plane"></i>
-                    Submit Files
+                    Submit & Process
                 </button>
             </div>
         </div>
@@ -181,10 +144,6 @@
 
             <!-- Action Buttons -->
             <div class="text-center">
-                <button class="btn btn-success" id="process-btn" style="display: none;">
-                    <i class="fas fa-cogs"></i>
-                    Process Files
-                </button>
                 <button class="btn btn-warning" id="download-btn" style="display: none;">
                     <i class="fas fa-download"></i>
                     Download Results

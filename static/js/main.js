@@ -11,7 +11,7 @@ class ProjectProtector {
         this.selectedFiles = [];
         this.currentTaskId = null;
         this.currentStep = 'upload'; // upload, submitted, processing, completed
-        this.selectedPiiCategories = ['NAMES', 'RACES', 'ORG_NAMES', 'STATUS', 'LOCATIONS', 'RELIGIONS']; // Default: all enabled
+        this.selectedPiiCategories = ['NAMES', 'ETHNIC', 'ORG_NAMES']; // Default: all enabled
 
         this.initializeElements();
         this.bindEvents();
@@ -26,7 +26,6 @@ class ProjectProtector {
         
         // Buttons
         this.submitBtn = document.getElementById('submit-btn');
-        this.processBtn = document.getElementById('process-btn');
         this.downloadBtn = document.getElementById('download-btn');
         this.humanReviewBtn = document.getElementById('human-review-btn');
         this.newTaskBtn = document.getElementById('new-task-btn');
@@ -44,9 +43,6 @@ class ProjectProtector {
 
         // PII selection elements
         this.piiSelectionSection = document.getElementById('pii-selection-section');
-        this.piiCheckboxes = document.querySelectorAll('.pii-checkbox');
-        this.selectAllBtn = document.getElementById('select-all-pii');
-        this.deselectAllBtn = document.getElementById('deselect-all-pii');
     }
 
     bindEvents() {
@@ -61,17 +57,9 @@ class ProjectProtector {
         
         // Button events
         this.submitBtn.addEventListener('click', () => this.submitFiles());
-        this.processBtn.addEventListener('click', () => this.processFiles());
         this.downloadBtn.addEventListener('click', () => this.downloadFiles());
         this.humanReviewBtn.addEventListener('click', () => this.openHumanReview());
         this.newTaskBtn.addEventListener('click', () => this.startNewTask());
-
-        // PII selection events
-        this.piiCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => this.updatePiiSelection());
-        });
-        this.selectAllBtn.addEventListener('click', () => this.selectAllPii());
-        this.deselectAllBtn.addEventListener('click', () => this.deselectAllPii());
     }
 
     handleDragOver(e) {
@@ -194,8 +182,12 @@ class ProjectProtector {
     async submitFiles() {
         if (this.selectedFiles.length === 0) return;
 
-        this.setButtonLoading(this.submitBtn, true);
+            this.setButtonLoading(this.submitBtn, true);
         this.showProgress(0, 'Uploading files...');
+        
+        // Show status section and hide submit button during processing
+        this.statusSection.style.display = 'block';
+        this.submitBtn.style.display = 'none';
 
         try {
             const formData = new FormData();
@@ -219,15 +211,11 @@ class ProjectProtector {
             const result = await response.json();
             this.currentTaskId = result.task_id;
             
-            this.showProgress(100, 'Files uploaded successfully!');
-            this.showMessage('Files uploaded successfully! You can now process them.', 'success');
-            this.showMessage(this.getPiiSelectionSummary(), 'info');
+            this.showProgress(50, 'Uploading complete. Processing files...');
+            this.showMessage('Files uploaded. Processing has started.', 'success');
 
-            // Update UI state
-            this.currentStep = 'submitted';
-            this.updateTaskInfo();
-            this.showStatusSection();
-            this.showProcessButton();
+            // Automatically start processing after upload
+            await this.processFiles();
 
         } catch (error) {
             this.showMessage(`Upload failed: ${error.message}`, 'error');
@@ -239,7 +227,7 @@ class ProjectProtector {
     async processFiles() {
         if (!this.currentTaskId) return;
 
-        this.setButtonLoading(this.processBtn, true);
+        this.setButtonLoading(this.submitBtn, true);
         this.showProgress(0, 'Processing files...');
 
         try {
@@ -265,7 +253,7 @@ class ProjectProtector {
         } catch (error) {
             this.showMessage(`Processing failed: ${error.message}`, 'error');
         } finally {
-            this.setButtonLoading(this.processBtn, false);
+            this.setButtonLoading(this.submitBtn, false);
         }
     }
 
@@ -329,11 +317,6 @@ class ProjectProtector {
         this.statusSection.style.display = 'block';
     }
 
-    showProcessButton() {
-        this.hideAllButtons();
-        this.processBtn.style.display = 'inline-flex';
-    }
-
     showDownloadButton() {
         this.hideAllButtons();
         this.downloadBtn.style.display = 'inline-flex';
@@ -347,7 +330,6 @@ class ProjectProtector {
     }
 
     hideAllButtons() {
-        this.processBtn.style.display = 'none';
         this.downloadBtn.style.display = 'none';
         this.humanReviewBtn.style.display = 'none';
         this.newTaskBtn.style.display = 'none';
@@ -418,49 +400,8 @@ class ProjectProtector {
     }
 
     // PII Selection Methods
-    updatePiiSelection() {
-        this.selectedPiiCategories = [];
-        this.piiCheckboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                this.selectedPiiCategories.push(checkbox.value);
-            }
-            // Update visual state
-            const label = checkbox.closest('.pii-checkbox-label');
-            if (checkbox.checked) {
-                label.classList.add('checked');
-            } else {
-                label.classList.remove('checked');
-            }
-        });
-
-        console.log('Selected PII categories:', this.selectedPiiCategories);
-    }
-
-    selectAllPii() {
-        this.piiCheckboxes.forEach(checkbox => {
-            checkbox.checked = true;
-        });
-        this.updatePiiSelection();
-    }
-
-    deselectAllPii() {
-        this.piiCheckboxes.forEach(checkbox => {
-            checkbox.checked = false;
-        });
-        this.updatePiiSelection();
-    }
-
     getPiiSelectionSummary() {
-        const total = this.piiCheckboxes.length;
-        const selected = this.selectedPiiCategories.length;
-
-        if (selected === 0) {
-            return "No optional PII types selected for masking";
-        } else if (selected === total) {
-            return "All optional PII types selected for masking";
-        } else {
-            return `${selected} of ${total} optional PII types selected for masking`;
-        }
+        return "3 PII types selected for masking: Personal Names, Ethnic Information, Organization Names";
     }
 
     checkAndShowHumanReviewButton() {
